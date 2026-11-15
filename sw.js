@@ -4,7 +4,7 @@
 
 // Change this name (v2, v3...) every time you update the app,
 // so phones throw away the old copy and download the new one.
-const CACHE = 'mavick-club-v2';
+const CACHE = 'mavick-club-v3';
 
 // Every file the app needs to run offline
 const FILES = [
@@ -15,6 +15,15 @@ const FILES = [
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  // player photos
+  './players/marivick.jpg',
+  './players/pam.jpg',
+  './players/jolo.jpg',
+  './players/andrei.jpg',
+  './players/clarenz.jpg',
+  './players/marah.jpg',
+  './players/maltha.jpg',
+  './players/julian.jpg',
   './fonts/jakarta-400.woff2',
   './fonts/jakarta-500.woff2',
   './fonts/jakarta-600.woff2',

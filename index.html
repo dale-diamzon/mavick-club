@@ -447,6 +447,30 @@ const P = id => S.players.find(p => p.id === id) || {name:'(removed)', level:'I'
 const colors = ['#0033A0','#0B6B2E','#7C3AED','#DB2777','#EA580C','#0891B2','#4F46E5','#65A30D'];
 const colorOf = name => colors[[...name].reduce((a,c)=>a+c.charCodeAt(0),0) % colors.length];
 const initials = n => n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+/* ---- Player photos ----
+   If a player's name EXACTLY matches one of these (ignoring upper/lower case
+   and extra spaces), their photo is shown instead of the colored initials.
+   Several names can point to the same photo. */
+const PHOTOS = {
+  'avick':'players/marivick.jpg', 'marivick':'players/marivick.jpg',
+  'pam':'players/pam.jpg', 'zsaira':'players/pam.jpg',
+  'jolo':'players/jolo.jpg',
+  'andrei':'players/andrei.jpg',
+  'clarenz':'players/clarenz.jpg', 'chi':'players/clarenz.jpg', 'boss sanchez':'players/clarenz.jpg',
+  'marah':'players/marah.jpg',
+  'maltha':'players/maltha.jpg',
+  'julian':'players/julian.jpg'
+};
+// Turn "  Boss   Sanchez " into "boss sanchez" so the lookup is forgiving about case/spaces
+const nameKey = n => n.trim().toLowerCase().replace(/[\s_]+/g, ' ');
+const photoOf = n => PHOTOS[nameKey(n)];   // photo path, or undefined if no match
+// Builds the avatar: <img> if the name has a photo, otherwise the old colored initials.
+// tag = 'div' or 'span', extra = any extra inline styles (used for the small leaderboard avatar)
+function avatar(name, tag='div', extra=''){
+  const src = photoOf(name);
+  if (src) return `<${tag} class="avatar" style="${extra}padding:0;overflow:hidden;background:#ddd"><img src="${src}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></${tag}>`;
+  return `<${tag} class="avatar" style="${extra}background:${colorOf(name)}">${initials(name)}</${tag}>`;
+}
 const levelName = {B:'Beginner', I:'Intermediate', A:'Advanced'};
 const levelVal = {B:1, I:2, A:3};
 const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -487,7 +511,7 @@ function renderPlayers(){
   if (!S.players.length) { $('#plist').innerHTML = `<div class="empty"><div class="big">🏓</div>No players yet.<br>Add your first player above.</div>`; return; }
   $('#plist').innerHTML = S.players.map(p => `
     <div class="player ${p.active?'':'off'}">
-      <div class="avatar" style="background:${colorOf(p.name)}">${initials(p.name)}</div>
+      ${avatar(p.name)}
       <div class="pinfo">
         <div class="pname">${esc(p.name)}</div>
         <div class="pmeta"><span class="tag ${p.level}">${{B:'BEG',I:'INT',A:'ADV'}[p.level]}</span>${p.gp} games · ${p.w}W ${p.l}L</div>
@@ -680,13 +704,13 @@ function renderBoard(){
     const medal = ['🥈','🥇','🥉'];
     $('#podium').innerHTML = `<div class="podium">${order.map((p,i)=> p ? `
       <div class="pod ${i===1?'first':''}"><div class="medal">${medal[i]}</div>
-        <div class="avatar" style="background:${colorOf(p.name)}">${initials(p.name)}</div>
+        ${avatar(p.name)}
         <div class="n">${esc(p.name)}</div><div class="w">${p.w} wins</div></div>` : '<div></div>').join('')}</div>`;
   } else $('#podium').innerHTML = `<div class="empty" style="padding-top:6px"><div class="big">🏆</div>Finish a match to see the rankings.</div>`;
 
   $('#lb').innerHTML = ranked.length ? ranked.map((p,i)=>{ const d=p.pf-p.pa; return `
     <div class="lb-row"><span class="rk">${i+1}</span>
-      <span style="display:flex;align-items:center;gap:8px;min-width:0"><span class="avatar" style="width:28px;height:28px;border-radius:9px;font-size:11px;background:${colorOf(p.name)}">${initials(p.name)}</span><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b></span>
+      <span style="display:flex;align-items:center;gap:8px;min-width:0">${avatar(p.name,'span','width:28px;height:28px;border-radius:9px;font-size:11px;')}<b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b></span>
       <span class="c">${p.w}</span><span class="c">${p.l}</span><span class="c ${d>0?'pos':d<0?'neg':''}">${d>0?'+':''}${d}</span></div>`; }).join('')
     : `<div class="empty">No players yet.</div>`;
 
