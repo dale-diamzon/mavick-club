@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- viewport-fit=cover lets the app draw under the iPhone notch (we pad it with safe-area below) -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Mavick Club</title>
+
+<!-- PWA: tells the phone this site can be installed as an app -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0033A0">
+
+<!-- iPhone-specific: open full screen from the home screen, with this icon and name -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mavick Club">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+
+<style>
+  /* ===== Fonts stored inside the app (so they work offline) ===== */
+  @font-face{font-family:'Plus Jakarta Sans';font-weight:400;font-display:swap;src:url(fonts/jakarta-400.woff2) format('woff2')}
+  @font-face{font-family:'Plus Jakarta Sans';font-weight:500;font-display:swap;src:url(fonts/jakarta-500.woff2) format('woff2')}
+  @font-face{font-family:'Plus Jakarta Sans';font-weight:600;font-display:swap;src:url(fonts/jakarta-600.woff2) format('woff2')}
+  @font-face{font-family:'Plus Jakarta Sans';font-weight:700;font-display:swap;src:url(fonts/jakarta-700.woff2) format('woff2')}
+  @font-face{font-family:'Plus Jakarta Sans';font-weight:800;font-display:swap;src:url(fonts/jakarta-800.woff2) format('woff2')}
+  @font-face{font-family:'Roboto Slab';font-weight:800;font-display:swap;src:url(fonts/slab-800.woff2) format('woff2')}
+  @font-face{font-family:'Roboto Slab';font-weight:900;font-display:swap;src:url(fonts/slab-900.woff2) format('woff2')}
+
+  /* ===== Brand tokens (taken from the Mavick logo) ===== */
+  :root{
+    --blue:#0033A0; --blue-dk:#00236F; --blue-soft:#E8EEFB;
+    --green:#0B6B2E; --green-dk:#07501F; --green-soft:#E6F3EA;
+    --yellow:#FFF200; --yellow-dk:#E8D800;
+    --ink:#0F172A; --muted:#64748B; --line:#E5E9F0; --bg:#F4F6FA; --card:#fff;
+    --red:#DC2626;
+    --r:18px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);
+    background:radial-gradient(1200px 600px at 20% 0%,#1a4fc4 0%,var(--blue) 40%,var(--blue-dk) 100%);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;gap:48px;padding:24px}
+  button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
+  input,select{font:inherit}
+
+  /* ===== Desktop side caption ===== */
+  .side{color:#fff;max-width:300px}
+  .side h1{font-family:'Roboto Slab',serif;font-weight:900;font-size:40px;line-height:1;letter-spacing:.5px}
+  .side h1 span{color:var(--yellow)}
+  .side p{opacity:.85;margin-top:14px;line-height:1.6;font-size:15px}
+  .side ul{margin-top:18px;list-style:none;display:grid;gap:10px;font-size:14px}
+  .side li{display:flex;gap:10px;align-items:center;opacity:.95}
+  .side li b{width:26px;height:26px;border-radius:8px;background:var(--yellow);color:var(--blue);display:grid;place-items:center;font-size:13px}
+  @media (max-width:820px){.side{display:none} body{padding:0;background:var(--bg)}}
+
+  /* ===== Phone frame ===== */
+  .phone{width:390px;height:812px;background:var(--bg);border-radius:46px;position:relative;overflow:hidden;
+    box-shadow:0 0 0 11px #0b0f1a,0 0 0 13px #2a3142,0 40px 80px rgba(0,0,0,.45);display:flex;flex-direction:column}
+  .notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:118px;height:32px;background:#0b0f1a;border-radius:20px;z-index:50}
+  @media (max-width:820px){
+    body{overscroll-behavior:none}
+    .phone{width:100vw;height:100dvh;border-radius:0;box-shadow:none}
+    .notch{display:none}
+    /* push content below the notch and above the home bar on real iPhones */
+    .hdr{padding-top:calc(env(safe-area-inset-top) + 16px)}
+    .sb-top{padding-top:calc(env(safe-area-inset-top) + 12px)}
+    .tabs{padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+  }
+  /* ===== Install banner ===== */
+  .install{display:none;align-items:center;gap:10px;background:var(--yellow);color:var(--blue);border-radius:16px;padding:12px 14px;margin-bottom:12px;font-size:13px;font-weight:600;line-height:1.4}
+  .install.on{display:flex}
+  .install b{font-weight:800}
+  .install .x{margin-left:auto;font-size:18px;font-weight:800;padding:0 4px}
+  .install .go{background:var(--blue);color:#fff;border-radius:10px;padding:8px 12px;font-weight:700;white-space:nowrap}
+
+  /* ===== Header ===== */
+  .hdr{background:var(--blue);color:#fff;padding:52px 20px 18px;position:relative;overflow:hidden;flex-shrink:0}
+  .hdr::after{content:"";position:absolute;right:-60px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,242,0,.08)}
+  .hdr-row{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+  .logo{width:46px;height:56px;object-fit:contain;border-radius:10px;background:var(--blue)}
+  .brand{font-family:'Roboto Slab',serif;font-weight:900;font-size:22px;letter-spacing:.6px;line-height:1}
+  .brand span{color:var(--yellow)}
+  .sub{font-size:12px;opacity:.75;margin-top:4px;font-weight:500}
+  .hdr-pill{margin-left:auto;background:rgba(255,255,255,.14);padding:7px 11px;border-radius:999px;font-size:12px;font-weight:700;display:flex;gap:6px;align-items:center}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--yellow)}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;position:relative;z-index:1}
+  .stat{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 12px}
+  .stat b{display:block;font-size:20px;font-weight:800}
+  .stat small{font-size:11px;opacity:.75;font-weight:600}
+
+  /* ===== Scrollable content ===== */
+  .content{flex:1;overflow-y:auto;padding:16px 16px 100px;scrollbar-width:none}
+  .content::-webkit-scrollbar{display:none}
+  .view{display:none;animation:fade .25s ease}
+  .view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .sec-title{display:flex;justify-content:space-between;align-items:center;margin:18px 2px 10px}
+  .sec-title h3{font-size:15px;font-weight:800}
+  .sec-title span{font-size:12px;color:var(--muted);font-weight:600}
+  .card{background:var(--card);border-radius:var(--r);padding:14px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 4px 14px rgba(15,23,42,.05)}
+
+  /* Add player form */
+  .add{display:flex;gap:8px}
+  .field{flex:1;display:flex;align-items:center;background:var(--bg);border-radius:14px;padding:0 12px;border:1.5px solid transparent;transition:.15s}
+  .field:focus-within{border-color:var(--blue);background:#fff}
+  .field input{border:0;outline:0;background:none;padding:13px 4px;width:100%;font-size:15px}
+  .btn{background:var(--blue);color:#fff;font-weight:700;border-radius:14px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:48px;transition:transform .1s,background .15s}
+  .btn:active{transform:scale(.97)}
+  .btn.yellow{background:var(--yellow);color:var(--blue)}
+  .btn.green{background:var(--green)}
+  .btn.ghost{background:var(--blue-soft);color:var(--blue)}
+  .btn.block{width:100%}
+  .btn:disabled{opacity:.45;pointer-events:none}
+  .levels{display:flex;gap:6px;margin-top:10px}
+  .lvl{flex:1;padding:8px 0;border-radius:10px;font-size:12px;font-weight:700;background:var(--bg);color:var(--muted);border:1.5px solid transparent}
+  .lvl.on{background:var(--green-soft);color:var(--green);border-color:var(--green)}
+
+  /* Player list */
+  .plist{display:grid;gap:8px}
+  .player{display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .player.off{opacity:.5}
+  .avatar{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;color:#fff;font-size:15px;flex-shrink:0}
+  .pinfo{flex:1;min-width:0}
+  .pname{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pmeta{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;gap:6px;align-items:center;white-space:nowrap}
+  .tag{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:.3px}
+  .tag.B{background:#FEF9C3;color:#854D0E}.tag.I{background:var(--green-soft);color:var(--green)}.tag.A{background:var(--blue-soft);color:var(--blue)}
+  .toggle{width:44px;height:26px;border-radius:999px;background:#CBD5E1;position:relative;transition:.2s;flex-shrink:0}
+  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .toggle.on{background:var(--green)}
+  .toggle.on::after{left:21px}
+  .icon-btn{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--muted)}
+  .icon-btn:hover{background:#FEE2E2;color:var(--red)}
+  .empty{text-align:center;color:var(--muted);padding:30px 16px;font-size:14px;line-height:1.6}
+  .empty .big{font-size:40px;margin-bottom:6px}
+
+  /* Settings segmented controls */
+  .setting{display:flex;justify-content:space-between;align-items:center;padding:10px 0}
+  .setting + .setting{border-top:1px solid var(--line)}
+  .setting label{font-size:14px;font-weight:600}
+  .setting small{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:2px}
+  .seg{display:flex;background:var(--bg);border-radius:12px;padding:3px}
+  .seg button{padding:7px 12px;border-radius:9px;font-size:13px;font-weight:700;color:var(--muted)}
+  .seg button.on{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .stepper{display:flex;align-items:center;gap:4px;background:var(--bg);border-radius:12px;padding:3px}
+  .stepper button{width:30px;height:30px;border-radius:9px;font-weight:800;font-size:16px;color:var(--blue)}
+  .stepper button:active{background:#fff}
+  .stepper b{min-width:22px;text-align:center}
+
+  /* Match cards */
+  .match{background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.04),0 6px 18px rgba(15,23,42,.06);margin-bottom:12px}
+  .match-top{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--green);color:#fff}
+  .match-top b{font-size:13px;letter-spacing:.4px}
+  .badge{font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;background:var(--yellow);color:var(--blue)}
+  .badge.done{background:rgba(255,255,255,.2);color:#fff}
+  .teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px;gap:8px}
+  .team{display:grid;gap:6px}
+  .team.right{text-align:right}
+  .team .nm{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .team.win .nm{color:var(--green)}
+  .score{font-family:'Roboto Slab',serif;font-weight:900;font-size:28px;display:flex;gap:8px;align-items:center;color:var(--ink)}
+  .score i{font-style:normal;font-size:14px;color:var(--muted);font-family:'Plus Jakarta Sans'}
+  .match-act{display:flex;gap:8px;padding:0 14px 14px}
+  .match-act .btn{height:42px;flex:1;font-size:14px}
+  .bench{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{background:#fff;border:1.5px dashed #CBD5E1;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--muted)}
+
+  /* Leaderboard */
+  .podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;align-items:end;margin-bottom:14px}
+  .pod{background:#fff;border-radius:18px;padding:12px 8px;text-align:center;box-shadow:0 4px 14px rgba(15,23,42,.06)}
+  .pod .avatar{margin:0 auto 8px}
+  .pod.first{background:var(--blue);color:#fff;padding:18px 8px}
+  .pod.first .avatar{width:52px;height:52px;border:3px solid var(--yellow)}
+  .pod .n{font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pod .w{font-size:11px;opacity:.7;font-weight:600;margin-top:2px}
+  .medal{font-size:20px}
+  .lb-row{display:grid;grid-template-columns:26px 1fr 38px 38px 46px;align-items:center;gap:6px;padding:11px 4px;font-size:14px}
+  .lb-row + .lb-row{border-top:1px solid var(--line)}
+  .lb-row.head{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.3px;padding-top:0}
+  .lb-row .rk{font-weight:800;color:var(--muted)}
+  .lb-row .c{text-align:center;font-weight:700}
+  .pos{color:var(--green)}.neg{color:var(--red)}
+  .hist{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:10px 0}
+  .hist + .hist{border-top:1px solid var(--line)}
+  .hist .s{font-family:'Roboto Slab';font-weight:900}
+
+  /* ===== Bottom tab bar ===== */
+  .tabs{position:absolute;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);padding:8px 10px 22px;z-index:20}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--muted);padding:6px 0;border-radius:14px}
+  .tab svg{width:22px;height:22px}
+  .tab.on{color:var(--blue)}
+  .tab.on .ti{background:var(--yellow);}
+  .ti{padding:4px 16px;border-radius:999px;transition:.2s}
+
+  /* ===== Scoreboard (full screen) ===== */
+  .sb{position:absolute;inset:0;z-index:40;background:#0b1530;display:none;flex-direction:column;color:#fff}
+  .sb.on{display:flex;animation:fade .2s}
+  .sb-top{padding:52px 16px 10px;display:flex;align-items:center;gap:10px}
+  .sb-top .back{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.1);display:grid;place-items:center}
+  .sb-top h4{font-size:15px;flex:1}
+  .sb-top small{font-size:12px;opacity:.6;display:block;font-weight:500}
+  .half{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;user-select:none;cursor:pointer;transition:filter .1s}
+  .half:active{filter:brightness(1.12)}
+  .half.a{background:linear-gradient(160deg,var(--green) 0%,var(--green-dk) 100%)}
+  .half.b{background:linear-gradient(160deg,var(--blue) 0%,var(--blue-dk) 100%)}
+  .half .names{font-weight:700;font-size:15px;opacity:.95;text-align:center;padding:0 20px}
+  .half .pts{font-family:'Roboto Slab',serif;font-weight:900;font-size:110px;line-height:1;margin:6px 0}
+  .half .hint{font-size:11px;opacity:.6;font-weight:600;letter-spacing:.5px}
+  .half .minus{position:absolute;right:16px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:14px;background:rgba(0,0,0,.2);font-size:22px;font-weight:800}
+  .half .serve{position:absolute;left:16px;top:16px;background:var(--yellow);color:var(--blue);font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;display:none}
+  .half.serving .serve{display:block}
+  .pop{animation:pop .25s}
+  @keyframes pop{50%{transform:scale(1.15)}}
+  .sb-mid{display:flex;justify-content:center;gap:8px;padding:10px 16px;background:#0b1530}
+  .sb-mid button{background:rgba(255,255,255,.1);padding:9px 14px;border-radius:12px;font-size:13px;font-weight:700}
+  .winner{position:absolute;inset:0;background:rgba(11,21,48,.9);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;z-index:5}
+  .winner.on{display:flex;animation:fade .3s}
+  .winner .trophy{font-size:64px}
+  .winner h2{font-family:'Roboto Slab',serif;font-weight:900;font-size:24px;line-height:1.2;color:var(--yellow);margin-top:8px;max-width:100%;overflow-wrap:anywhere}
+  .winner p{opacity:.8;margin:6px 0 22px}
+  .winner .btn{width:240px;margin-top:8px}
+
+  /* ===== Quick winner picker ===== */
+  .pick{display:block;width:100%;padding:16px;border-radius:16px;color:#fff;font-weight:800;font-size:15px;margin-bottom:8px;text-align:left;transition:transform .1s}
+  .pick:active{transform:scale(.98)}
+  .pick.a{background:var(--green)} .pick.b{background:var(--blue)}
+  .pick small{display:block;font-size:11px;opacity:.75;font-weight:600;letter-spacing:.4px;margin-bottom:2px}
+  .score .wp{font-size:12px;line-height:1.3;text-align:center}
+
+  /* ===== Toast ===== */
+  .toast{position:absolute;left:50%;bottom:100px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:11px 16px;border-radius:14px;font-size:13px;font-weight:600;opacity:0;transition:.25s;z-index:60;white-space:nowrap;pointer-events:none}
+  .toast.on{opacity:1;transform:translateX(-50%)}
+
+  /* ===== Bottom sheet confirm ===== */
+  .sheet-bg{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:55;display:none;align-items:flex-end}
+  .sheet-bg.on{display:flex}
+  .sheet{background:#fff;width:100%;border-radius:24px 24px 0 0;padding:22px 18px 30px;animation:up .25s}
+  @keyframes up{from{transform:translateY(100%)}}
+  .sheet h4{font-size:17px}
+  .sheet p{color:var(--muted);font-size:14px;margin:6px 0 16px;line-height:1.5}
+  .sheet .row{display:flex;gap:8px}
+  .sheet .row .btn{flex:1}
+</style>
+</head>
+<body>
+
+<!-- Desktop-only caption next to the phone -->
+<div class="side">
+  <h1>MAVICK<br><span>CLUB</span></h1>
+  <p>Pickleball matchmaker. Open this link on your phone and add it to your Home Screen — it works offline.</p>
+  <ul>
+    <li><b>1</b> Add players &amp; check them in</li>
+    <li><b>2</b> Randomize fair matches per court</li>
+    <li><b>3</b> Tap to score live, games to 11 / 15 / 21</li>
+    <li><b>4</b> Wins update the leaderboard</li>
+  </ul>
+</div>
+
+<div class="phone" id="app">
+  <div class="notch"></div>
+
+  <!-- Header -->
+  <header class="hdr">
+    <div class="hdr-row">
+      <img class="logo" src="icons/logo.png" alt="Mavick Club logo">
+      <div>
+        <div class="brand">MAVICK <span>CLUB</span></div>
+        <div class="sub">Pickleball Matchmaker</div>
+      </div>
+      <div class="hdr-pill"><span class="dot"></span><span id="roundPill">Round 0</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="stPlayers">0</b><small>Checked in</small></div>
+      <div class="stat"><b id="stLive">0</b><small>Live matches</small></div>
+      <div class="stat"><b id="stDone">0</b><small>Games played</small></div>
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- ================= PLAYERS ================= -->
+    <section class="view on" id="v-players">
+      <!-- Shown only when the app isn't installed yet -->
+      <div class="install" id="install">
+        <span id="installText"></span>
+        <button class="go" id="installBtn" style="display:none">Install</button>
+        <button class="x" id="installX" aria-label="Dismiss">×</button>
+      </div>
+      <div class="card">
+        <form class="add" id="addForm">
+          <div class="field">
+            <input id="nameInput" placeholder="Enter player name" maxlength="20" autocomplete="off">
+          </div>
+          <button class="btn yellow" type="submit">＋ Add</button>
+        </form>
+        <div class="levels" id="levels">
+          <button class="lvl" data-l="B">Beginner</button>
+          <button class="lvl on" data-l="I">Intermediate</button>
+          <button class="lvl" data-l="A">Advanced</button>
+        </div>
+      </div>
+
+      <div class="sec-title"><h3>Players</h3><span id="pCount">0 total</span></div>
+      <div class="plist" id="plist"></div>
+    </section>
+
+    <!-- ================= MATCHES ================= -->
+    <section class="view" id="v-matches">
+      <div class="card">
+        <div class="setting">
+          <div><label>Format</label><small>Players per side</small></div>
+          <div class="seg" id="segFormat">
+            <button data-v="2">Doubles</button><button data-v="1">Singles</button>
+          </div>
+        </div>
+        <div class="setting">
+          <div><label>Courts</label><small>Games at the same time</small></div>
+          <div class="stepper"><button id="cMinus">−</button><b id="courtsVal">2</b><button id="cPlus">+</button></div>
+        </div>
+        <div class="setting">
+          <div><label>Play to</label><small>Win by 2</small></div>
+          <div class="seg" id="segTarget">
+            <button data-v="11">11</button><button data-v="15">15</button><button data-v="21">21</button>
+          </div>
+        </div>
+        <div class="setting">
+          <div><label>Balance by skill</label><small>Mix levels on each team</small></div>
+          <button class="toggle" id="balToggle"></button>
+        </div>
+      </div>
+
+      <button class="btn block" id="genBtn" style="margin-top:12px;height:54px;font-size:16px">🎲 Randomize Matches</button>
+
+      <div class="sec-title"><h3>Courts</h3><span id="mCount"></span></div>
+      <div id="mlist"></div>
+
+      <div id="benchWrap" style="display:none">
+        <div class="sec-title"><h3>Sitting out</h3><span>Play next round</span></div>
+        <div class="bench" id="bench"></div>
+      </div>
+    </section>
+
+    <!-- ================= LEADERBOARD ================= -->
+    <section class="view" id="v-board">
+      <div id="podium"></div>
+      <div class="card">
+        <div class="lb-row head"><span>#</span><span>PLAYER</span><span class="c">W</span><span class="c">L</span><span class="c">+/−</span></div>
+        <div id="lb"></div>
+      </div>
+      <div class="sec-title"><h3>Recent games</h3><span id="hCount"></span></div>
+      <div class="card" id="hist"></div>
+      <button class="btn ghost block" id="resetBtn" style="margin-top:14px">Reset stats</button>
+    </section>
+  </main>
+
+  <!-- Bottom tabs -->
+  <nav class="tabs">
+    <button class="tab on" data-v="players"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.8 2.6 2.6 3 5.2"/></svg></span>Players</button>
+    <button class="tab" data-v="matches"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M12 4v16M3 12h18"/></svg></span>Matches</button>
+    <button class="tab" data-v="board"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 6h3a3 3 0 0 1-3 4M7 6H4a3 3 0 0 0 3 4"/></svg></span>Leaderboard</button>
+  </nav>
+
+  <!-- Full-screen scoreboard -->
+  <div class="sb" id="sb">
+    <div class="sb-top">
+      <button class="back" id="sbBack">←</button>
+      <h4 id="sbTitle">Court 1<small>Play to 11 · win by 2</small></h4>
+    </div>
+    <div class="half a" id="halfA">
+      <span class="serve">SERVING</span>
+      <div class="names" id="namesA"></div>
+      <div class="pts" id="ptsA">0</div>
+      <div class="hint">TAP TO ADD POINT</div>
+      <button class="minus" data-t="A">−</button>
+    </div>
+    <div class="sb-mid">
+      <button id="undoBtn">↶ Undo</button>
+      <button id="swapServe">🏓 Switch serve</button>
+      <button id="endEarly">Finish</button>
+    </div>
+    <div class="half b" id="halfB">
+      <span class="serve">SERVING</span>
+      <div class="names" id="namesB"></div>
+      <div class="pts" id="ptsB">0</div>
+      <div class="hint">TAP TO ADD POINT</div>
+      <button class="minus" data-t="B">−</button>
+    </div>
+    <div class="winner" id="winner">
+      <div class="trophy">🏆</div>
+      <h2 id="winTitle">Team A wins!</h2>
+      <p id="winSub">11 – 7</p>
+      <button class="btn yellow" id="saveWin">Save result</button>
+      <button class="btn ghost" id="keepPlaying" style="background:rgba(255,255,255,.1);color:#fff">Keep scoring</button>
+    </div>
+  </div>
+
+  <!-- Confirm sheet -->
+  <div class="sheet-bg" id="sheetBg">
+    <div class="sheet">
+      <h4 id="shTitle">Are you sure?</h4>
+      <p id="shText"></p>
+      <div class="row"><button class="btn ghost" id="shNo">Cancel</button><button class="btn" id="shYes">Confirm</button></div>
+    </div>
+  </div>
+
+  <!-- Quick winner sheet (no scoring) -->
+  <div class="sheet-bg" id="pickBg">
+    <div class="sheet">
+      <h4 id="pickTitle">Who won?</h4>
+      <p>No score needed — just tap the winning team.</p>
+      <button class="pick a" id="pickA"></button>
+      <button class="pick b" id="pickB"></button>
+      <button class="btn ghost block" id="pickNo" style="margin-top:4px">Cancel</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ================= STATE ================= */
+// (helpers used by the seed data are defined first)
+const uid = () => Math.random().toString(36).slice(2,9);
+function newPlayer(name, level){ return {id:uid(), name, level, active:true, w:0, l:0, pf:0, pa:0, gp:0}; }
+// Everything the app knows lives in one object, saved to the browser so a refresh keeps it.
+const KEY = 'mavick-club-v1';
+const defaults = {
+  players: [],          // {id, name, level, active, w, l, pf, pa, gp}
+  format: 2,            // 2 = doubles, 1 = singles
+  courts: 2,
+  target: 11,
+  balance: false,
+  round: 0,
+  matches: [],          // {id, court, a:[ids], b:[ids], sa, sb, log:[], serve:'A', done:false}
+  bench: [],
+  history: []           // finished games, newest first
+};
+let S;
+try { S = Object.assign({}, defaults, JSON.parse(localStorage.getItem(KEY)) || {}); } catch(e){ S = {...defaults}; }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+/* ================= HELPERS ================= */
+const $ = s => document.querySelector(s);
+const P = id => S.players.find(p => p.id === id) || {name:'(removed)', level:'I'};
+const colors = ['#0033A0','#0B6B2E','#7C3AED','#DB2777','#EA580C','#0891B2','#4F46E5','#65A30D'];
+const colorOf = name => colors[[...name].reduce((a,c)=>a+c.charCodeAt(0),0) % colors.length];
+const initials = n => n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const levelName = {B:'Beginner', I:'Intermediate', A:'Advanced'};
+const levelVal = {B:1, I:2, A:3};
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const names = ids => ids.map(id => esc(P(id).name)).join(' & ');
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),1800); }
+function confirmSheet(title, text, yesLabel, onYes){
+  $('#shTitle').textContent=title; $('#shText').textContent=text; $('#shYes').textContent=yesLabel;
+  $('#sheetBg').classList.add('on');
+  $('#shYes').onclick=()=>{ $('#sheetBg').classList.remove('on'); onYes(); };
+}
+$('#shNo').onclick=()=>$('#sheetBg').classList.remove('on');
+
+/* ================= TABS ================= */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on', x===t));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on', v.id==='v-'+t.dataset.v));
+  $('.content').scrollTop = 0;
+});
+
+/* ================= PLAYERS ================= */
+let pickLevel = 'I';
+document.querySelectorAll('.lvl').forEach(b => b.onclick = () => {
+  pickLevel = b.dataset.l;
+  document.querySelectorAll('.lvl').forEach(x=>x.classList.toggle('on', x===b));
+});
+$('#addForm').onsubmit = e => {
+  e.preventDefault();
+  const name = $('#nameInput').value.trim();
+  if (!name) return toast('Type a name first');
+  if (S.players.some(p => p.name.toLowerCase() === name.toLowerCase())) return toast('That player already exists');
+  S.players.unshift(newPlayer(name, pickLevel));
+  $('#nameInput').value = '';
+  toast(`${name} added ✓`); render();
+};
+function renderPlayers(){
+  $('#pCount').textContent = `${S.players.length} total`;
+  if (!S.players.length) { $('#plist').innerHTML = `<div class="empty"><div class="big">🏓</div>No players yet.<br>Add your first player above.</div>`; return; }
+  $('#plist').innerHTML = S.players.map(p => `
+    <div class="player ${p.active?'':'off'}">
+      <div class="avatar" style="background:${colorOf(p.name)}">${initials(p.name)}</div>
+      <div class="pinfo">
+        <div class="pname">${esc(p.name)}</div>
+        <div class="pmeta"><span class="tag ${p.level}">${{B:'BEG',I:'INT',A:'ADV'}[p.level]}</span>${p.gp} games · ${p.w}W ${p.l}L</div>
+      </div>
+      <button class="toggle ${p.active?'on':''}" data-act="toggle" data-id="${p.id}" title="Checked in"></button>
+      <button class="icon-btn" data-act="del" data-id="${p.id}" title="Remove">✕</button>
+    </div>`).join('');
+}
+$('#plist').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const p = S.players.find(x => x.id === b.dataset.id);
+  if (b.dataset.act === 'toggle') { p.active = !p.active; render(); }
+  if (b.dataset.act === 'del') confirmSheet('Remove player?', `${p.name} will be removed from the club list.`, 'Remove', () => {
+    S.players = S.players.filter(x => x !== p); render(); toast('Player removed');
+  });
+};
+
+/* ================= MATCH SETTINGS ================= */
+function bindSeg(sel, key){
+  document.querySelectorAll(sel+' button').forEach(b => b.onclick = () => { S[key] = +b.dataset.v; render(); });
+}
+bindSeg('#segFormat','format'); bindSeg('#segTarget','target');
+$('#cMinus').onclick = () => { S.courts = Math.max(1, S.courts-1); render(); };
+$('#cPlus').onclick  = () => { S.courts = Math.min(8, S.courts+1); render(); };
+$('#balToggle').onclick = () => { S.balance = !S.balance; render(); };
+
+/* ================= MATCHMAKING ================= */
+// Fair randomizer: players with the FEWEST games go first, ties broken randomly.
+function generate(){
+  const per = S.format * 2;                       // players needed per court
+  const pool = shuffle(S.players.filter(p=>p.active)).sort((a,b)=>a.gp-b.gp);
+  const courts = Math.min(S.courts, Math.floor(pool.length / per));
+  if (courts < 1) return toast(`Need at least ${per} checked-in players`);
+  const playing = shuffle(pool.slice(0, courts*per));
+  S.bench = pool.slice(courts*per).map(p=>p.id);
+  S.matches = [];
+  for (let c=0; c<courts; c++){
+    let grp = playing.slice(c*per, c*per+per);
+    let a, b;
+    if (S.balance && S.format===2){
+      // strongest + weakest vs the two middle players
+      grp = grp.sort((x,y)=>levelVal[y.level]-levelVal[x.level]);
+      a = [grp[0], grp[3]]; b = [grp[1], grp[2]];
+    } else { a = grp.slice(0,S.format); b = grp.slice(S.format); }
+    S.matches.push({id:uid(), court:c+1, a:a.map(p=>p.id), b:b.map(p=>p.id), sa:0, sb:0, log:[], serve:'A', done:false});
+  }
+  S.round++;
+  toast(`Round ${S.round} ready — ${courts} court${courts>1?'s':''} 🎲`);
+  render();
+}
+$('#genBtn').onclick = () => {
+  const live = S.matches.filter(m=>!m.done && (m.sa||m.sb));
+  if (live.length) confirmSheet('Start a new round?', `${live.length} match(es) still in progress. Their scores will be discarded.`, 'New round', generate);
+  else generate();
+};
+
+function renderMatches(){
+  // reflect settings
+  document.querySelectorAll('#segFormat button').forEach(b=>b.classList.toggle('on', +b.dataset.v===S.format));
+  document.querySelectorAll('#segTarget button').forEach(b=>b.classList.toggle('on', +b.dataset.v===S.target));
+  $('#courtsVal').textContent = S.courts;
+  $('#balToggle').classList.toggle('on', S.balance);
+  $('#balToggle').closest('.setting').style.display = S.format===2 ? '' : 'none';
+  $('#genBtn').innerHTML = S.matches.length && S.matches.every(m=>m.done) ? '🎲 Next Round' : (S.matches.length ? '🔀 Reshuffle Matches' : '🎲 Randomize Matches');
+
+  if (!S.matches.length){
+    $('#mCount').textContent='';
+    $('#mlist').innerHTML = `<div class="empty"><div class="big">🎲</div>No matches yet.<br>Tap <b>Randomize Matches</b> to pair up checked-in players.</div>`;
+  } else {
+    $('#mCount').textContent = `Round ${S.round}`;
+    $('#mlist').innerHTML = S.matches.map(m => {
+      // m.aw = true if Team A won (set when saved, works for scored and quick wins)
+      const aw = m.done && (m.aw ?? m.sa>m.sb), bw = m.done && !aw;
+      return `<div class="match">
+        <div class="match-top"><b>COURT ${m.court}</b><span class="badge ${m.done?'done':''}">${m.done?'FINAL':(m.sa||m.sb?'LIVE':'READY')}</span></div>
+        <div class="teams">
+          <div class="team ${aw?'win':''}">${m.a.map(id=>`<div class="nm">${aw?'🏆 ':''}${esc(P(id).name)}</div>`).join('')}</div>
+          ${m.quick ? `<div class="score"><i class="wp">Winner<br>picked</i></div>`   /* no score was kept */
+                    : `<div class="score">${m.sa}<i>vs</i>${m.sb}</div>`}
+          <div class="team right ${bw?'win':''}">${m.b.map(id=>`<div class="nm">${esc(P(id).name)}${bw?' 🏆':''}</div>`).join('')}</div>
+        </div>
+        ${m.done?'':`<div class="match-act">
+            <button class="btn green" data-score="${m.id}">▶ ${m.sa||m.sb?'Continue':'Score'}</button>
+            <button class="btn yellow" data-win="${m.id}">🏆 Winner</button>
+          </div>`}
+      </div>`;
+    }).join('');
+  }
+  $('#benchWrap').style.display = S.bench.length && S.matches.length ? '' : 'none';
+  $('#bench').innerHTML = S.bench.map(id=>`<span class="chip">${esc(P(id).name)}</span>`).join('');
+}
+$('#mlist').onclick = e => {
+  const s = e.target.closest('[data-score]'); if (s) return openScore(s.dataset.score);
+  const w = e.target.closest('[data-win]');   if (w) openPick(w.dataset.win);
+};
+
+/* ================= QUICK WINNER (no scoring) ================= */
+let pickMatch = null;
+function openPick(id){
+  pickMatch = S.matches.find(m=>m.id===id);
+  $('#pickTitle').textContent = `Who won Court ${pickMatch.court}?`;
+  $('#pickA').innerHTML = `<small>TEAM A</small>${names(pickMatch.a)}`;
+  $('#pickB').innerHTML = `<small>TEAM B</small>${names(pickMatch.b)}`;
+  $('#pickBg').classList.add('on');
+}
+$('#pickA').onclick = () => quickWin(true);
+$('#pickB').onclick = () => quickWin(false);
+$('#pickNo').onclick = () => $('#pickBg').classList.remove('on');
+$('#pickBg').onclick = e => { if (e.target.id==='pickBg') $('#pickBg').classList.remove('on'); }; // tap outside closes
+function quickWin(aWon){
+  $('#pickBg').classList.remove('on');
+  saveResult(pickMatch, aWon, true);
+  toast('Winner saved 🏆');
+};
+
+/* ================= SCOREBOARD ================= */
+let cur = null;    // match being scored
+function openScore(id){
+  cur = S.matches.find(m=>m.id===id);
+  $('#sb').classList.add('on'); $('#winner').classList.remove('on');
+  drawScore();
+}
+function drawScore(){
+  $('#sbTitle').innerHTML = `Court ${cur.court}<small>Play to ${S.target} · win by 2</small>`;
+  $('#namesA').innerHTML = names(cur.a); $('#namesB').innerHTML = names(cur.b);
+  $('#ptsA').textContent = cur.sa; $('#ptsB').textContent = cur.sb;
+  $('#halfA').classList.toggle('serving', cur.serve==='A');
+  $('#halfB').classList.toggle('serving', cur.serve==='B');
+}
+function winnerOf(m){
+  const hi=Math.max(m.sa,m.sb), lo=Math.min(m.sa,m.sb);
+  return hi>=S.target && hi-lo>=2 ? (m.sa>m.sb?'A':'B') : null;
+}
+function point(team){
+  if (team==='A') cur.sa++; else cur.sb++;
+  cur.log.push(team); cur.serve = team;            // rally scoring: point winner serves next
+  const el = team==='A'?$('#ptsA'):$('#ptsB'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  drawScore(); save();
+  if (navigator.vibrate) navigator.vibrate(15);
+  if (winnerOf(cur)) showWinner();
+}
+function showWinner(){
+  const w = cur.sa>cur.sb ? cur.a : cur.b;
+  $('#winTitle').textContent = `${names(w).replace(/&amp;/g,'&')} win${w.length===1?'s':''}!`;
+  $('#winSub').textContent = `${Math.max(cur.sa,cur.sb)} – ${Math.min(cur.sa,cur.sb)}`;
+  $('#winner').classList.add('on');
+}
+$('#halfA').onclick = e => { if (!e.target.closest('.minus')) point('A'); };
+$('#halfB').onclick = e => { if (!e.target.closest('.minus')) point('B'); };
+document.querySelectorAll('.minus').forEach(b => b.onclick = () => {
+  const t=b.dataset.t; if (t==='A'&&cur.sa>0) cur.sa--; if (t==='B'&&cur.sb>0) cur.sb--;
+  const i = cur.log.lastIndexOf(t); if (i>-1) cur.log.splice(i,1);
+  drawScore(); save();
+});
+$('#undoBtn').onclick = () => {
+  const t = cur.log.pop(); if (!t) return toast('Nothing to undo');
+  if (t==='A') cur.sa--; else cur.sb--; drawScore(); save();
+};
+$('#swapServe').onclick = () => { cur.serve = cur.serve==='A'?'B':'A'; drawScore(); };
+$('#endEarly').onclick = () => {
+  if (cur.sa===cur.sb) return toast('Scores are tied — keep playing');
+  showWinner();
+};
+$('#keepPlaying').onclick = () => $('#winner').classList.remove('on');
+$('#sbBack').onclick = () => { $('#sb').classList.remove('on'); render(); };
+$('#saveWin').onclick = () => {
+  saveResult(cur, cur.sa > cur.sb, false);
+  $('#sb').classList.remove('on'); toast('Result saved 🏆');
+};
+
+// Records a finished match. quick = true means no score was kept,
+// so only wins/losses count (points and +/− stay the same).
+function saveResult(m, aWon, quick){
+  const pts = (x) => quick ? 0 : x;
+  const apply = (ids, won, pf, pa) => ids.forEach(id => { const p=S.players.find(x=>x.id===id); if(!p) return;
+    p.gp++; won?p.w++:p.l++; p.pf+=pts(pf); p.pa+=pts(pa); });
+  apply(m.a, aWon, m.sa, m.sb); apply(m.b, !aWon, m.sb, m.sa);
+  m.done = true; m.aw = aWon; m.quick = quick;
+  S.history.unshift({a:m.a, b:m.b, sa:m.sa, sb:m.sb, aw:aWon, quick, court:m.court, round:S.round});
+  S.history = S.history.slice(0,30);
+  render();
+}
+
+/* ================= LEADERBOARD ================= */
+function renderBoard(){
+  const ranked = [...S.players].sort((a,b)=> b.w-a.w || (b.pf-b.pa)-(a.pf-a.pa) || a.l-b.l || a.name.localeCompare(b.name));
+  const top = ranked.filter(p=>p.gp>0).slice(0,3);
+  if (top.length){
+    const order = [top[1], top[0], top[2]];       // 2nd, 1st, 3rd
+    const medal = ['🥈','🥇','🥉'];
+    $('#podium').innerHTML = `<div class="podium">${order.map((p,i)=> p ? `
+      <div class="pod ${i===1?'first':''}"><div class="medal">${medal[i]}</div>
+        <div class="avatar" style="background:${colorOf(p.name)}">${initials(p.name)}</div>
+        <div class="n">${esc(p.name)}</div><div class="w">${p.w} wins</div></div>` : '<div></div>').join('')}</div>`;
+  } else $('#podium').innerHTML = `<div class="empty" style="padding-top:6px"><div class="big">🏆</div>Finish a match to see the rankings.</div>`;
+
+  $('#lb').innerHTML = ranked.length ? ranked.map((p,i)=>{ const d=p.pf-p.pa; return `
+    <div class="lb-row"><span class="rk">${i+1}</span>
+      <span style="display:flex;align-items:center;gap:8px;min-width:0"><span class="avatar" style="width:28px;height:28px;border-radius:9px;font-size:11px;background:${colorOf(p.name)}">${initials(p.name)}</span><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b></span>
+      <span class="c">${p.w}</span><span class="c">${p.l}</span><span class="c ${d>0?'pos':d<0?'neg':''}">${d>0?'+':''}${d}</span></div>`; }).join('')
+    : `<div class="empty">No players yet.</div>`;
+
+  $('#hCount').textContent = S.history.length ? `${S.history.length} games` : '';
+  $('#hist').innerHTML = S.history.length ? S.history.slice(0,8).map(h=>`
+    <div class="hist"><div><b style="${(h.aw ?? h.sa>h.sb)?'color:var(--green)':''}">${names(h.a)}</b><br><span style="color:var(--muted);font-size:12px">vs</span> <b style="${!(h.aw ?? h.sa>h.sb)?'color:var(--green)':''}">${names(h.b)}</b></div>
+    <div style="text-align:right"><div class="s">${h.quick ? '🏆 Win' : `${h.sa} – ${h.sb}`}</div><small style="color:var(--muted)">R${h.round} · Court ${h.court}</small></div></div>`).join('')
+    : `<div class="empty" style="padding:16px">No games played yet.</div>`;
+}
+$('#resetBtn').onclick = () => confirmSheet('Reset all stats?', 'Wins, losses, rounds and match history will be cleared. Players stay.', 'Reset', () => {
+  S.players.forEach(p=>Object.assign(p,{w:0,l:0,pf:0,pa:0,gp:0})); S.history=[]; S.matches=[]; S.bench=[]; S.round=0;
+  render(); toast('Stats reset');
+});
+
+/* ================= RENDER ALL ================= */
+function render(){
+  renderPlayers(); renderMatches(); renderBoard();
+  $('#stPlayers').textContent = S.players.filter(p=>p.active).length;
+  $('#stLive').textContent = S.matches.filter(m=>!m.done).length;
+  $('#stDone').textContent = S.history.length;
+  $('#roundPill').textContent = `Round ${S.round}`;
+  save();
+}
+render();
+
+/* ================= OFFLINE + INSTALL ================= */
+// Register the service worker: it saves the app on the phone so it works with no internet
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+// Already opened from the home screen? Then don't show the install banner.
+const isInstalled = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+let dismissed = false; try { dismissed = localStorage.getItem('mavick-install-x') === '1'; } catch(e){}
+
+function showInstall(html, withButton){
+  if (isInstalled || dismissed) return;
+  $('#installText').innerHTML = html;
+  $('#installBtn').style.display = withButton ? '' : 'none';
+  $('#install').classList.add('on');
+}
+// iPhone: Apple has no install button, so tell users what to tap in Safari
+if (isIOS) showInstall('📲 <b>Install the app:</b> tap <b>Share</b> ⬆️ then <b>Add to Home Screen</b>', false);
+
+// Android/Chrome: the browser gives us an install prompt we can trigger with a button
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  showInstall('📲 <b>Install Mavick Club</b> on your phone — works offline', true);
+});
+$('#installBtn').onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null;
+  $('#install').classList.remove('on');
+};
+$('#installX').onclick = () => {
+  $('#install').classList.remove('on');
+  try { localStorage.setItem('mavick-install-x','1'); } catch(e){}
+};
+</script>
+</body>
+</html>
