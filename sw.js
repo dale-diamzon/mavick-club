@@ -4,7 +4,7 @@
 
 // Change this name (v2, v3...) every time you update the app,
 // so phones throw away the old copy and download the new one.
-const CACHE = 'mavick-club-v6';
+const CACHE = 'mavick-club-v8';
 
 // Every file the app needs to run offline
 const FILES = [
@@ -24,7 +24,7 @@ const FILES = [
   './marah.jpg',
   './maltha.jpg',
   './julian.jpg',
-  './dale.jpg',
+  './dale.jpg.png',
   './fonts/jakarta-400.woff2',
   './fonts/jakarta-500.woff2',
   './fonts/jakarta-600.woff2',
@@ -36,7 +36,11 @@ const FILES = [
 
 // 1) INSTALL: the first time someone opens the link, download all files into the cache
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
+  // Save each file one by one. If one file is missing (404), skip it
+  // instead of failing the WHOLE update (addAll fails if even one file is missing).
+  event.waitUntil(caches.open(CACHE).then(cache =>
+    Promise.all(FILES.map(f => cache.add(f).catch(() => console.warn('Missing file:', f))))
+  ));
   self.skipWaiting(); // activate right away instead of waiting for tabs to close
 });
 
