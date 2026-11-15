@@ -4,7 +4,7 @@
 
 // Change this name (v2, v3...) every time you update the app,
 // so phones throw away the old copy and download the new one.
-const CACHE = 'mavick-club-v8';
+const CACHE = 'mavick-club-v9';
 
 // Every file the app needs to run offline
 const FILES = [
@@ -53,12 +53,29 @@ self.addEventListener('activate', event => {
   self.clients.claim(); // take control of the open app immediately
 });
 
-// 3) FETCH: whenever the app asks for a file, serve it from the cache first.
-//    Only go to the internet if it isn't cached (so it works offline).
+// 3) FETCH:
+//    - The app page itself (index.html): try the INTERNET first, so a new
+//      version shows right away when you're online. Save it to the cache too.
+//      If there's no internet, use the saved copy (still works offline).
+//    - Everything else (photos, fonts, icons): use the cache first (fast).
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
+  if (event.request.mode === 'navigate') {            // opening the app / the page
+    event.respondWith(
+      fetch(event.request)
+        .then(res => {
+          const copy = res.clone();                     // keep a copy for offline use
+          caches.open(CACHE).then(c => c.put('./index.html', copy));
+          return res;                                   // show the fresh page
+        })
+        .catch(() => caches.match('./index.html'))      // offline: saved page
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request, { ignoreSearch: true }).then(cached =>
-      cached || fetch(event.request).catch(() => caches.match('./index.html')))
+      cached || fetch(event.request))
   );
 });
