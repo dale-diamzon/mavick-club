@@ -65,12 +65,6 @@
     .phone{width:100vw;height:100dvh;border-radius:0;box-shadow:none}
     .notch{display:none}
     /* push content below the notch and above the home bar on real iPhones */
-    /* iOS 26 draws its own frosted-glass blur under the clock/battery and blurs
-       whatever is behind it. We can't turn that off, so push the logo + title
-       further down, below the blur. Only plain blue sits under it now. */
-    .hdr{padding-top:calc(env(safe-area-inset-top) + 48px)}
-    .sb-top{padding-top:calc(env(safe-area-inset-top) + 36px)}  /* same idea for the scoreboard screen */
-    .tabs{padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
   }
   /* ===== Install banner ===== */
   .install{display:none;align-items:center;gap:10px;background:var(--yellow);color:var(--blue);border-radius:16px;padding:12px 14px;margin-bottom:12px;font-size:13px;font-weight:600;line-height:1.4}
@@ -246,6 +240,15 @@
   .sheet p{color:var(--muted);font-size:14px;margin:6px 0 16px;line-height:1.5}
   .sheet .row{display:flex;gap:8px}
   .sheet .row .btn{flex:1}
+  /* ===== Phone spacing for the notch / home bar =====
+     This MUST be at the bottom of the styles: when two rules are equally
+     specific, the LATER one wins. (It used to sit above .hdr, so .hdr's
+     padding:52px always won and the title stayed under the iPhone clock blur.) */
+  @media (max-width:820px){
+    .hdr{padding-top:calc(env(safe-area-inset-top) + 24px)}     /* title starts below the clock area */
+    .sb-top{padding-top:calc(env(safe-area-inset-top) + 12px)}  /* same for the scoreboard screen */
+    .tabs{padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+  }
 </style>
 </head>
 <body>
