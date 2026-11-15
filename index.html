@@ -248,6 +248,9 @@
     .hdr{padding-top:calc(env(safe-area-inset-top) + 24px)}     /* title starts below the clock area */
     .sb-top{padding-top:calc(env(safe-area-inset-top) + 12px)}  /* same for the scoreboard screen */
     .tabs{padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+    /* the tabs got taller (home-bar space), so leave more room at the bottom
+       of the scroll area, otherwise the last items hide behind the tabs */
+    .content{padding-bottom:calc(env(safe-area-inset-bottom) + 130px)}
   }
 </style>
 </head>
