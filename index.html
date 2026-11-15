@@ -15,6 +15,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mavick Club">
+
+<!-- Splash: runs before the page draws. If opened from the home screen
+     (or with ?splash in the link, for testing), turn the loading screen on. -->
+<script>
+  if (navigator.standalone || matchMedia('(display-mode: standalone)').matches || location.search.includes('splash'))
+    document.documentElement.classList.add('show-splash');
+</script>
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 
@@ -212,6 +219,22 @@
   .half .minus{position:absolute;right:16px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:14px;background:rgba(0,0,0,.2);font-size:22px;font-weight:800}
   .half .serve{position:absolute;left:16px;top:16px;background:var(--yellow);color:var(--blue);font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;display:none}
   .half.serving .serve{display:block}
+  /* ===== Loading screen (only when opened from the home screen) ===== */
+  .splash{display:none;position:fixed;inset:0;z-index:100;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    background:radial-gradient(600px 500px at 50% 35%,#1a4fc4 0%,var(--blue) 45%,var(--blue-dk) 100%);color:#fff;
+    transition:opacity .45s ease}
+  html.show-splash .splash{display:flex}
+  .splash.hide{opacity:0;pointer-events:none}                 /* fade out */
+  .splash img{width:120px;height:146px;object-fit:contain;border-radius:22px;box-shadow:0 12px 30px rgba(0,0,0,.25);animation:splashIn .6s ease both}
+  .splash h1{font-family:'Roboto Slab',serif;font-weight:900;font-size:30px;letter-spacing:.8px;animation:splashIn .6s .1s ease both}
+  .splash h1 span{color:var(--yellow)}
+  .splash .dots{display:flex;gap:8px;margin-top:6px}
+  .splash .dots i{width:9px;height:9px;border-radius:50%;background:var(--yellow);animation:dot 1s infinite ease-in-out}
+  .splash .dots i:nth-child(2){animation-delay:.15s}
+  .splash .dots i:nth-child(3){animation-delay:.3s}
+  @keyframes splashIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+  @keyframes dot{0%,80%,100%{transform:scale(.5);opacity:.4}40%{transform:scale(1);opacity:1}}
+
   /* ===== Full-screen "most losses" message ===== */
   .loser{position:absolute;inset:0;z-index:60;background:rgba(11,21,48,.94);color:#fff;
     display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;cursor:pointer}
@@ -266,6 +289,12 @@
 </style>
 </head>
 <body>
+<!-- Loading screen: logo + name + bouncing dots -->
+<div class="splash" id="splash">
+  <img src="icons/logo.png" alt="">
+  <h1>MAVICK <span>CLUB</span></h1>
+  <div class="dots"><i></i><i></i><i></i></div>
+</div>
 
 <!-- Desktop-only caption next to the phone -->
 <div class="side">
@@ -828,6 +857,18 @@ $('#installX').onclick = () => {
   $('#install').classList.remove('on');
   try { localStorage.setItem('mavick-install-x','1'); } catch(e){}
 };
+
+/* ================= LOADING SCREEN ================= */
+if (document.documentElement.classList.contains('show-splash')){
+  const started = Date.now();
+  window.addEventListener('load', () => {
+    const wait = Math.max(0, 1300 - (Date.now() - started));   // keep it up for at least 1.3s
+    setTimeout(() => {
+      $('#splash').classList.add('hide');                         // fade out
+      setTimeout(() => $('#splash').remove(), 500);               // then remove it completely
+    }, wait);
+  });
+}
 </script>
 </body>
 </html>
