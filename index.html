@@ -452,14 +452,14 @@ const initials = n => n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toU
    and extra spaces), their photo is shown instead of the colored initials.
    Several names can point to the same photo. */
 const PHOTOS = {
-  'avick':'players/marivick.jpg', 'marivick':'players/marivick.jpg',
-  'pam':'players/pam.jpg', 'zsaira':'players/pam.jpg',
-  'jolo':'players/jolo.jpg',
-  'andrei':'players/andrei.jpg',
-  'clarenz':'players/clarenz.jpg', 'chi':'players/clarenz.jpg', 'boss sanchez':'players/clarenz.jpg',
-  'marah':'players/marah.jpg',
-  'maltha':'players/maltha.jpg',
-  'julian':'players/julian.jpg'
+  'avick':'marivick.jpg', 'marivick':'marivick.jpg',
+  'pam':'pam.jpg', 'zsaira':'pam.jpg',
+  'jolo':'jolo.jpg',
+  'andrei':'andrei.jpg',
+  'clarenz':'clarenz.jpg', 'chi':'clarenz.jpg', 'boss sanchez':'clarenz.jpg',
+  'marah':'marah.jpg',
+  'maltha':'maltha.jpg',
+  'julian':'julian.jpg'
 };
 // Turn "  Boss   Sanchez " into "boss sanchez" so the lookup is forgiving about case/spaces
 const nameKey = n => n.trim().toLowerCase().replace(/[\s_]+/g, ' ');
