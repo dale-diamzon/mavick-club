@@ -203,6 +203,9 @@
   .half:active{filter:brightness(1.12)}
   .half.a{background:linear-gradient(160deg,var(--green) 0%,var(--green-dk) 100%)}
   .half.b{background:linear-gradient(160deg,var(--blue) 0%,var(--blue-dk) 100%)}
+  /* row of player pictures above the names on the scoreboard */
+  .half .faces{display:flex;justify-content:center;gap:10px;margin-bottom:8px}
+  .half .faces .avatar{width:52px;height:52px;border-radius:16px;font-size:18px;border:2px solid rgba(255,255,255,.85)}
   .half .names{font-weight:700;font-size:15px;opacity:.95;text-align:center;padding:0 20px}
   .half .pts{font-family:'Roboto Slab',serif;font-weight:900;font-size:110px;line-height:1;margin:6px 0}
   .half .hint{font-size:11px;opacity:.6;font-weight:600;letter-spacing:.5px}
@@ -380,6 +383,7 @@
     </div>
     <div class="half a" id="halfA">
       <span class="serve">SERVING</span>
+      <div class="faces" id="facesA"></div>
       <div class="names" id="namesA"></div>
       <div class="pts" id="ptsA">0</div>
       <div class="hint">TAP TO ADD POINT</div>
@@ -392,6 +396,7 @@
     </div>
     <div class="half b" id="halfB">
       <span class="serve">SERVING</span>
+      <div class="faces" id="facesB"></div>
       <div class="names" id="namesB"></div>
       <div class="pts" id="ptsB">0</div>
       <div class="hint">TAP TO ADD POINT</div>
@@ -650,6 +655,9 @@ function openScore(id){
 function drawScore(){
   $('#sbTitle').innerHTML = `Court ${cur.court}<small>Play to ${S.target} · win by 2</small>`;
   $('#namesA').innerHTML = names(cur.a); $('#namesB').innerHTML = names(cur.b);
+  // show each player's picture (or initials) above the team names
+  $('#facesA').innerHTML = cur.a.map(id => avatar(P(id).name)).join('');
+  $('#facesB').innerHTML = cur.b.map(id => avatar(P(id).name)).join('');
   $('#ptsA').textContent = cur.sa; $('#ptsB').textContent = cur.sb;
   $('#halfA').classList.toggle('serving', cur.serve==='A');
   $('#halfB').classList.toggle('serving', cur.serve==='B');
