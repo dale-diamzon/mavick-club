@@ -65,8 +65,11 @@
     .phone{width:100vw;height:100dvh;border-radius:0;box-shadow:none}
     .notch{display:none}
     /* push content below the notch and above the home bar on real iPhones */
-    .hdr{padding-top:calc(env(safe-area-inset-top) + 24px)}  /* a bit more space below the clock */
-    .sb-top{padding-top:calc(env(safe-area-inset-top) + 12px)}
+    /* iOS 26 draws its own frosted-glass blur under the clock/battery and blurs
+       whatever is behind it. We can't turn that off, so push the logo + title
+       further down, below the blur. Only plain blue sits under it now. */
+    .hdr{padding-top:calc(env(safe-area-inset-top) + 48px)}
+    .sb-top{padding-top:calc(env(safe-area-inset-top) + 36px)}  /* same idea for the scoreboard screen */
     .tabs{padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
   }
   /* ===== Install banner ===== */
@@ -459,7 +462,8 @@ const PHOTOS = {
   'clarenz':'clarenz.jpg', 'chi':'clarenz.jpg', 'boss sanchez':'clarenz.jpg',
   'marah':'marah.jpg',
   'maltha':'maltha.jpg',
-  'julian':'julian.jpg'
+  'julian':'julian.jpg',
+  'dale':'dale.jpg', 'sean':'dale.jpg', 'sean dale':'dale.jpg', 'del':'dale.jpg'
 };
 // Turn "  Boss   Sanchez " into "boss sanchez" so the lookup is forgiving about case/spaces
 const nameKey = n => n.trim().toLowerCase().replace(/[\s_]+/g, ' ');
@@ -559,7 +563,9 @@ function generate(){
     S.matches.push({id:uid(), court:c+1, a:a.map(p=>p.id), b:b.map(p=>p.id), sa:0, sb:0, log:[], serve:'A', done:false});
   }
   S.round++;
-  toast(`Round ${S.round} ready — ${courts} court${courts>1?'s':''} 🎲`);
+  // If there weren't enough players to fill every selected court, say why
+  if (courts < S.courts) toast(`Only ${courts} court${courts>1?'s':''} used — ${S.courts} courts need ${S.courts*per} checked-in players`);
+  else toast(`Round ${S.round} ready — ${courts} court${courts>1?'s':''} 🎲`);
   render();
 }
 $('#genBtn').onclick = () => {
