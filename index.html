@@ -608,10 +608,19 @@ function checkStreak(ids){
   const hit = ids.map(id => S.players.find(x => x.id === id))
     .filter(p => p && p.streak > 0 && p.streak % 3 === 0);   // streak is exactly 3, 6, 9 ...
   if (!hit.length) return;
-  // one player: "kay Maltha ... talo na sya" / both players: "kay Maltha at Dale ... talo na sila"
-  const names = hit.map(p => `<b>${esc(p.name)}</b>`).join(' at ');
+  // The boss (Avick / Marivick) gets a nicer message instead of being teased
+  const BOSS = ['avick', 'marivick'];
+  const bosses = hit.filter(p => BOSS.includes(nameKey(p.name)));
+  const others = hit.filter(p => !BOSS.includes(nameKey(p.name)));
+  const lines = [];
+  if (others.length){
+    // one player: "kay Maltha ... talo na sya" / both players: "kay Maltha at Dale ... talo na sila"
+    const names = others.map(p => `<b>${esc(p.name)}</b>`).join(' at ');
+    lines.push(`Pakisabi naman kay ${names} galing galingan, nakaka <b>${others[0].streak}</b> talo na ${others.length > 1 ? 'sila' : 'sya'}! 😂`);
+  }
+  bosses.forEach(p => lines.push(`Okay lang yan boss <b>${esc(p.name)}</b>, bawi next game! 💪`));
   $('#loserPic').innerHTML = `<div class="faces-big">${hit.map(p => avatar(p.name)).join('')}</div>`;
-  $('#loserMsg').innerHTML = `Pakisabi naman kay ${names} galing galingan, nakaka <b>${hit[0].streak}</b> talo na ${hit.length > 1 ? 'sila' : 'sya'}! 😂`;
+  $('#loserMsg').innerHTML = lines.join('<br><br>');   // if both, show each message on its own line
   $('#loser').classList.add('on');
 }
 // tap anywhere on the message to close it
