@@ -645,6 +645,18 @@ $('#loser').onclick = () => $('#loser').classList.remove('on');
 
 /* ================= MATCHMAKING ================= */
 // Fair randomizer: players with the FEWEST games go first, ties broken randomly.
+// Every pair in a team: [A,B] -> [[A,B]]
+const pairs = arr => arr.flatMap((x, i) => arr.slice(i + 1).map(y => [x, y]));
+// Counts from the game history how often two players were partners ('w') or opponents ('v')
+function meetCounts(){
+  const c = {}, key = (x, y) => x < y ? x + '|' + y : y + '|' + x;
+  const add = (x, y, t) => { const k = key(x, y); (c[k] ||= {w:0, v:0})[t]++; };
+  S.history.forEach(h => {
+    [h.a, h.b].forEach(team => pairs(team).forEach(([x, y]) => add(x, y, 'w')));
+    h.a.forEach(x => h.b.forEach(y => add(x, y, 'v')));
+  });
+  return (x, y, t) => (c[key(x, y)] || {})[t] || 0;
+}
 function generate(){
   const per = S.format * 2;                       // players needed per court
 
@@ -655,31 +667,49 @@ function generate(){
   // court numbers that are free (not taken by a kept match)
   const freeCourts = [...Array(S.courts)].map((_, i) => i + 1).filter(c => !usedCourts.includes(c));
 
-  // Who can play: checked in and not in a kept match.
-  // Priority: fewest games played first; if tied, whoever sat out last round goes first.
-  const satOut = new Set(S.bench);
+  // Who can play: checked in and not in a kept match, fewest games played first
   const pool = shuffle(S.players.filter(p => p.active && !busy.has(p.id)))
-    .sort((a, b) => a.gp - b.gp || satOut.has(b.id) - satOut.has(a.id));
+    .sort((a, b) => a.gp - b.gp);
 
   const courts = Math.min(freeCourts.length, Math.floor(pool.length / per));
   if (courts < 1){
     if (keep.length) return toast(freeCourts.length ? `Need ${per} free players for another court` : 'All courts are still playing');
     return toast(`Need at least ${per} checked-in players`);
   }
-  const playing = shuffle(pool.slice(0, courts*per));
-  S.bench = pool.slice(courts*per).map(p=>p.id);   // everyone left over sits out
+  const need = courts * per;
 
-  const fresh = [];
-  for (let c=0; c<courts; c++){
-    let grp = playing.slice(c*per, c*per+per);
-    let a, b;
-    if (S.balance && S.format===2){
-      // strongest + weakest vs the two middle players
-      grp = grp.sort((x,y)=>levelVal[y.level]-levelVal[x.level]);
-      a = [grp[0], grp[3]]; b = [grp[1], grp[2]];
-    } else { a = grp.slice(0,S.format); b = grp.slice(S.format); }
-    fresh.push({id:uid(), court:freeCourts[c], a:a.map(p=>p.id), b:b.map(p=>p.id), sa:0, sb:0, log:[], serve:'A', done:false});
+  // Players with fewer games MUST play. Players tied at the cut-off games count
+  // are candidates: we choose among them to get the freshest mix.
+  const cutGp  = pool[need - 1].gp;
+  const forced = pool.filter(p => p.gp < cutGp);
+  const tied   = pool.filter(p => p.gp === cutGp);
+  const meet   = meetCounts();                     // who already played with / against whom
+
+  // Try many random line-ups and keep the one with the fewest repeats.
+  // Same partner again costs 2, same opponent again costs 1.
+  let best = null, bestScore = Infinity;
+  for (let t = 0; t < 400 && bestScore > 0; t++){
+    const picked = shuffle([...forced, ...shuffle(tied).slice(0, need - forced.length)]);
+    const lineup = []; let score = 0;
+    for (let c = 0; c < courts; c++){
+      let grp = picked.slice(c*per, c*per+per), a, b;
+      if (S.balance && S.format===2){
+        // strongest + weakest vs the two middle players
+        grp = [...grp].sort((x,y)=>levelVal[y.level]-levelVal[x.level]);
+        a = [grp[0], grp[3]]; b = [grp[1], grp[2]];
+      } else { a = grp.slice(0,S.format); b = grp.slice(S.format); }
+      score += pairs(a).reduce((n,[x,y]) => n + 2*meet(x.id,y.id,'w'), 0)
+             + pairs(b).reduce((n,[x,y]) => n + 2*meet(x.id,y.id,'w'), 0)
+             + a.reduce((n,x) => n + b.reduce((m,y) => m + meet(x.id,y.id,'v'), 0), 0);
+      lineup.push({a, b});
+    }
+    if (score < bestScore){ best = lineup; bestScore = score; }
   }
+
+  const playingIds = new Set(best.flatMap(g => [...g.a, ...g.b]).map(p => p.id));
+  S.bench = pool.filter(p => !playingIds.has(p.id)).map(p => p.id);   // everyone left over sits out
+  const fresh = best.map((g, c) => ({id:uid(), court:freeCourts[c], a:g.a.map(p=>p.id), b:g.b.map(p=>p.id),
+    sa:0, sb:0, log:[], serve:'A', done:false}));
   // kept matches + new matches, shown in court order
   S.matches = [...keep, ...fresh].sort((x, y) => x.court - y.court);
   S.round++;
