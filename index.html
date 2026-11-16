@@ -59,13 +59,13 @@
   .side ul{margin-top:18px;list-style:none;display:grid;gap:10px;font-size:14px}
   .side li{display:flex;gap:10px;align-items:center;opacity:.95}
   .side li b{width:26px;height:26px;border-radius:8px;background:var(--yellow);color:var(--blue);display:grid;place-items:center;font-size:13px}
-  @media (max-width:820px){.side{display:none} body{padding:0;background:var(--bg)}}
+  @media (max-width:820px), (max-height:500px){.side{display:none} body{padding:0;background:var(--bg)}}
 
   /* ===== Phone frame ===== */
   .phone{width:390px;height:812px;background:var(--bg);border-radius:46px;position:relative;overflow:hidden;
     box-shadow:0 0 0 11px #0b0f1a,0 0 0 13px #2a3142,0 40px 80px rgba(0,0,0,.45);display:flex;flex-direction:column}
   .notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:118px;height:32px;background:#0b0f1a;border-radius:20px;z-index:50}
-  @media (max-width:820px){
+  @media (max-width:820px), (max-height:500px){
     /* iOS tints the status-bar blur with the page background,
        so make it brand blue instead of light gray (removes the white "cloud") */
     html,body{background:var(--blue);overscroll-behavior:none}
@@ -73,12 +73,6 @@
     .notch{display:none}
     /* push content below the notch and above the home bar on real iPhones */
   }
-  /* ===== Install banner ===== */
-  .install{display:none;align-items:center;gap:10px;background:var(--yellow);color:var(--blue);border-radius:16px;padding:12px 14px;margin-bottom:12px;font-size:13px;font-weight:600;line-height:1.4}
-  .install.on{display:flex}
-  .install b{font-weight:800}
-  .install .x{margin-left:auto;font-size:18px;font-weight:800;padding:0 4px}
-  .install .go{background:var(--blue);color:#fff;border-radius:10px;padding:8px 12px;font-weight:700;white-space:nowrap}
 
   /* ===== Header ===== */
   .hdr{background:var(--blue);color:#fff;padding:52px 20px 18px;position:relative;overflow:hidden;flex-shrink:0}
@@ -278,13 +272,26 @@
      This MUST be at the bottom of the styles: when two rules are equally
      specific, the LATER one wins. (It used to sit above .hdr, so .hdr's
      padding:52px always won and the title stayed under the iPhone clock blur.) */
-  @media (max-width:820px){
+  @media (max-width:820px), (max-height:500px){
     .hdr{padding-top:calc(env(safe-area-inset-top) + 24px)}     /* title starts below the clock area */
     .sb-top{padding-top:calc(env(safe-area-inset-top) + 12px)}  /* same for the scoreboard screen */
     .tabs{padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
     /* the tabs got taller (home-bar space), so leave more room at the bottom
        of the scroll area, otherwise the last items hide behind the tabs */
     .content{padding-bottom:calc(env(safe-area-inset-bottom) + 130px)}
+  }
+  /* ===== Scoreboard turned sideways (landscape) =====
+     Team A on the left, buttons in the middle, Team B on the right. */
+  @media (orientation:landscape) and (max-height:500px){
+    .sb.on{display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:auto 1fr}
+    .sb-top{grid-column:1 / -1;padding:8px calc(env(safe-area-inset-right) + 16px) 6px calc(env(safe-area-inset-left) + 16px)}
+    #halfA{grid-column:1;grid-row:2;padding-left:env(safe-area-inset-left)}
+    .sb-mid{grid-column:2;grid-row:2;flex-direction:column;justify-content:center;padding:10px 8px}
+    #halfB{grid-column:3;grid-row:2;padding-right:env(safe-area-inset-right)}
+    .half .pts{font-size:84px;margin:2px 0}
+    .half .faces{margin-bottom:4px}
+    .half .faces .avatar{width:42px;height:42px;border-radius:13px;font-size:15px}
+    .half .minus{top:auto;bottom:12px;transform:none}     /* minus button in the corner so it doesn't cover the score */
   }
 </style>
 </head>
@@ -332,12 +339,6 @@
   <main class="content">
     <!-- ================= PLAYERS ================= -->
     <section class="view on" id="v-players">
-      <!-- Shown only when the app isn't installed yet -->
-      <div class="install" id="install">
-        <span id="installText"></span>
-        <button class="go" id="installBtn" style="display:none">Install</button>
-        <button class="x" id="installX" aria-label="Dismiss">×</button>
-      </div>
       <div class="card">
         <form class="add" id="addForm">
           <div class="field">
@@ -513,7 +514,7 @@ const initials = n => n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toU
    Several names can point to the same photo. */
 const PHOTOS = {
   'avick':'marivick.jpg', 'marivick':'marivick.jpg',
-  'pam':'pam.jpg', 'zsaira':'pam.jpg',
+  'pam':'pam.jpg', 'pamela':'pam.jpg', 'zsaira':'pam.jpg',
   'jolo':'jolo.jpg',
   'andrei':'andrei.jpg',
   'clarenz':'clarenz.jpg', 'chi':'clarenz.jpg', 'boss sanchez':'clarenz.jpg',
@@ -622,12 +623,29 @@ $('#loser').onclick = () => $('#loser').classList.remove('on');
 function generate(){
   const prevRound = S.round;                      // how many shuffles happened before this one
   const per = S.format * 2;                       // players needed per court
-  const pool = shuffle(S.players.filter(p=>p.active)).sort((a,b)=>a.gp-b.gp);
-  const courts = Math.min(S.courts, Math.floor(pool.length / per));
-  if (courts < 1) return toast(`Need at least ${per} checked-in players`);
+
+  // Matches that already have points and aren't finished stay as they are
+  const keep = S.matches.filter(m => !m.done && (m.sa || m.sb));
+  const busy = new Set(keep.flatMap(m => [...m.a, ...m.b]));      // players still on court
+  const usedCourts = keep.map(m => m.court);
+  // court numbers that are free (not taken by a kept match)
+  const freeCourts = [...Array(S.courts)].map((_, i) => i + 1).filter(c => !usedCourts.includes(c));
+
+  // Who can play: checked in and not in a kept match.
+  // Priority: fewest games played first; if tied, whoever sat out last round goes first.
+  const satOut = new Set(S.bench);
+  const pool = shuffle(S.players.filter(p => p.active && !busy.has(p.id)))
+    .sort((a, b) => a.gp - b.gp || satOut.has(b.id) - satOut.has(a.id));
+
+  const courts = Math.min(freeCourts.length, Math.floor(pool.length / per));
+  if (courts < 1){
+    if (keep.length) return toast(freeCourts.length ? `Need ${per} free players for another court` : 'All courts are still playing');
+    return toast(`Need at least ${per} checked-in players`);
+  }
   const playing = shuffle(pool.slice(0, courts*per));
-  S.bench = pool.slice(courts*per).map(p=>p.id);
-  S.matches = [];
+  S.bench = pool.slice(courts*per).map(p=>p.id);   // everyone left over sits out
+
+  const fresh = [];
   for (let c=0; c<courts; c++){
     let grp = playing.slice(c*per, c*per+per);
     let a, b;
@@ -636,20 +654,21 @@ function generate(){
       grp = grp.sort((x,y)=>levelVal[y.level]-levelVal[x.level]);
       a = [grp[0], grp[3]]; b = [grp[1], grp[2]];
     } else { a = grp.slice(0,S.format); b = grp.slice(S.format); }
-    S.matches.push({id:uid(), court:c+1, a:a.map(p=>p.id), b:b.map(p=>p.id), sa:0, sb:0, log:[], serve:'A', done:false});
+    fresh.push({id:uid(), court:freeCourts[c], a:a.map(p=>p.id), b:b.map(p=>p.id), sa:0, sb:0, log:[], serve:'A', done:false});
   }
+  // kept matches + new matches, shown in court order
+  S.matches = [...keep, ...fresh].sort((x, y) => x.court - y.court);
   S.round++;
-  // If there weren't enough players to fill every selected court, say why
-  if (courts < S.courts) toast(`Only ${courts} court${courts>1?'s':''} used — ${S.courts} courts need ${S.courts*per} checked-in players`);
+
+  const newCourts = fresh.map(m => m.court).join(' & ');
+  if (keep.length) toast(`New match on court ${newCourts} — ongoing match kept 👍`);
+  else if (courts < S.courts) toast(`Only ${courts} court${courts>1?'s':''} used — ${S.courts} courts need ${S.courts*per} checked-in players`);
   else toast(`Round ${S.round} ready — ${courts} court${courts>1?'s':''} 🎲`);
   render();
   checkLoser(prevRound);   // maybe show the "most losses" message
 }
-$('#genBtn').onclick = () => {
-  const live = S.matches.filter(m=>!m.done && (m.sa||m.sb));
-  if (live.length) confirmSheet('Start a new round?', `${live.length} match(es) still in progress. Their scores will be discarded.`, 'New round', generate);
-  else generate();
-};
+// No warning needed anymore: matches in progress are kept, not discarded
+$('#genBtn').onclick = generate;
 
 function renderMatches(){
   // reflect settings
@@ -827,36 +846,6 @@ render();
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
-
-// Already opened from the home screen? Then don't show the install banner.
-const isInstalled = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-let dismissed = false; try { dismissed = localStorage.getItem('mavick-install-x') === '1'; } catch(e){}
-
-function showInstall(html, withButton){
-  if (isInstalled || dismissed) return;
-  $('#installText').innerHTML = html;
-  $('#installBtn').style.display = withButton ? '' : 'none';
-  $('#install').classList.add('on');
-}
-// iPhone: Apple has no install button, so tell users what to tap in Safari
-if (isIOS) showInstall('📲 <b>Install the app:</b> tap <b>Share</b> ⬆️ then <b>Add to Home Screen</b>', false);
-
-// Android/Chrome: the browser gives us an install prompt we can trigger with a button
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault(); deferredPrompt = e;
-  showInstall('📲 <b>Install Mavick Club</b> on your phone — works offline', true);
-});
-$('#installBtn').onclick = async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null;
-  $('#install').classList.remove('on');
-};
-$('#installX').onclick = () => {
-  $('#install').classList.remove('on');
-  try { localStorage.setItem('mavick-install-x','1'); } catch(e){}
-};
 
 /* ================= LOADING SCREEN ================= */
 if (document.documentElement.classList.contains('show-splash')){
