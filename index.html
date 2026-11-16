@@ -234,6 +234,8 @@
     display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;cursor:pointer}
   .loser.on{display:flex;animation:fade .25s ease}
   .loser .avatar{width:150px;height:150px;border-radius:40px;font-size:52px;border:4px solid var(--yellow);margin-bottom:22px}
+  .loser .faces-big{display:flex;gap:14px;justify-content:center}
+  .loser .faces-big .avatar{width:130px;height:130px}
   .loser .msg{font-size:22px;font-weight:700;line-height:1.45;max-width:320px}
   .loser .msg b{color:var(--yellow)}
   .loser .tap{margin-top:26px;font-size:12px;opacity:.6;font-weight:600;letter-spacing:.5px}
@@ -495,8 +497,7 @@ const defaults = {
   round: 0,
   matches: [],          // {id, court, a:[ids], b:[ids], sa, sb, log:[], serve:'A', done:false}
   bench: [],
-  history: [],          // finished games, newest first
-  loserShownAt: null    // loss count when the "most losses" message last showed (null = never)
+  history: []           // finished games, newest first
 };
 let S;
 try { S = Object.assign({}, defaults, JSON.parse(localStorage.getItem(KEY)) || {}); } catch(e){ S = {...defaults}; }
@@ -600,19 +601,17 @@ $('#cMinus').onclick = () => { S.courts = Math.max(1, S.courts-1); render(); };
 $('#cPlus').onclick  = () => { S.courts = Math.min(8, S.courts+1); render(); };
 $('#balToggle').onclick = () => { S.balance = !S.balance; render(); };
 
-/* ================= MOST-LOSSES MESSAGE ================= */
-// First time: after 2 shuffles. After that: every time the top loser has 3 more losses.
-function checkLoser(prevRound){
-  // player with the most losses (ties: fewer wins, then worse +/-)
-  const worst = [...S.players].filter(p=>p.l>0)
-    .sort((a,b)=> b.l-a.l || a.w-b.w || (a.pf-a.pa)-(b.pf-b.pa))[0];
-  if (!worst) return;                                       // nobody has lost yet
-  const firstTime = S.loserShownAt === null && prevRound >= 2;
-  const again     = S.loserShownAt !== null && worst.l >= S.loserShownAt + 3;
-  if (!firstTime && !again) return;
-  S.loserShownAt = worst.l; save();                          // remember, so it waits for 3 more losses
-  $('#loserPic').innerHTML = avatar(worst.name);             // their photo (or initials)
-  $('#loserMsg').innerHTML = `Pakisabi naman kay <b>${esc(worst.name)}</b> galing galingan, nakaka <b>${worst.l}</b> talo na sya! 😂`;
+/* ================= LOSING-STREAK MESSAGE ================= */
+// Shows right after a game is saved, when a player has lost 3 games IN A ROW
+// (and again at 6, 9 ... if they keep losing). ids = the losing team's player ids.
+function checkStreak(ids){
+  const hit = ids.map(id => S.players.find(x => x.id === id))
+    .filter(p => p && p.streak > 0 && p.streak % 3 === 0);   // streak is exactly 3, 6, 9 ...
+  if (!hit.length) return;
+  // one player: "kay Maltha ... talo na sya" / both players: "kay Maltha at Dale ... talo na sila"
+  const names = hit.map(p => `<b>${esc(p.name)}</b>`).join(' at ');
+  $('#loserPic').innerHTML = `<div class="faces-big">${hit.map(p => avatar(p.name)).join('')}</div>`;
+  $('#loserMsg').innerHTML = `Pakisabi naman kay ${names} galing galingan, nakaka <b>${hit[0].streak}</b> talo na ${hit.length > 1 ? 'sila' : 'sya'}! 😂`;
   $('#loser').classList.add('on');
 }
 // tap anywhere on the message to close it
@@ -621,7 +620,6 @@ $('#loser').onclick = () => $('#loser').classList.remove('on');
 /* ================= MATCHMAKING ================= */
 // Fair randomizer: players with the FEWEST games go first, ties broken randomly.
 function generate(){
-  const prevRound = S.round;                      // how many shuffles happened before this one
   const per = S.format * 2;                       // players needed per court
 
   // Matches that already have points and aren't finished stay as they are
@@ -665,7 +663,6 @@ function generate(){
   else if (courts < S.courts) toast(`Only ${courts} court${courts>1?'s':''} used — ${S.courts} courts need ${S.courts*per} checked-in players`);
   else toast(`Round ${S.round} ready — ${courts} court${courts>1?'s':''} 🎲`);
   render();
-  checkLoser(prevRound);   // maybe show the "most losses" message
 }
 // No warning needed anymore: matches in progress are kept, not discarded
 $('#genBtn').onclick = generate;
@@ -792,12 +789,14 @@ $('#saveWin').onclick = () => {
 function saveResult(m, aWon, quick){
   const pts = (x) => quick ? 0 : x;
   const apply = (ids, won, pf, pa) => ids.forEach(id => { const p=S.players.find(x=>x.id===id); if(!p) return;
-    p.gp++; won?p.w++:p.l++; p.pf+=pts(pf); p.pa+=pts(pa); });
+    p.gp++; won?p.w++:p.l++; p.pf+=pts(pf); p.pa+=pts(pa);
+    p.streak = won ? 0 : (p.streak || 0) + 1; });   // losses in a row
   apply(m.a, aWon, m.sa, m.sb); apply(m.b, !aWon, m.sb, m.sa);
   m.done = true; m.aw = aWon; m.quick = quick;
   S.history.unshift({a:m.a, b:m.b, sa:m.sa, sb:m.sb, aw:aWon, quick, court:m.court, round:S.round});
   S.history = S.history.slice(0,30);
   render();
+  checkStreak(aWon ? m.b : m.a);   // did the losing team just hit 3 in a row?
 }
 
 /* ================= LEADERBOARD ================= */
@@ -826,7 +825,7 @@ function renderBoard(){
     : `<div class="empty" style="padding:16px">No games played yet.</div>`;
 }
 $('#resetBtn').onclick = () => confirmSheet('Reset all stats?', 'Wins, losses, rounds and match history will be cleared. Players stay.', 'Reset', () => {
-  S.players.forEach(p=>Object.assign(p,{w:0,l:0,pf:0,pa:0,gp:0})); S.history=[]; S.matches=[]; S.bench=[]; S.round=0; S.loserShownAt=null;
+  S.players.forEach(p=>Object.assign(p,{w:0,l:0,pf:0,pa:0,gp:0,streak:0})); S.history=[]; S.matches=[]; S.bench=[]; S.round=0;
   render(); toast('Stats reset');
 });
 
