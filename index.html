@@ -1021,6 +1021,8 @@ $('#resetBtn').onclick = () => confirmSheet('Reset all stats?', 'Wins, losses, r
 // One audio player for the whole app. It must be started from a tap (iPhone rule).
 const AUDIO_SRC = 'audio/celebration.mp3';
 const celeAudio = new Audio();
+// iPhone (iOS 17+): treat this as media playback so it still plays when the silent switch is on
+try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
 celeAudio.preload = 'auto';
 celeAudio.src = AUDIO_SRC;
 // Load the song as a blob so it also plays offline on iPhone
@@ -1055,15 +1057,25 @@ function celebrate(id, place){
   $('#cele').classList.remove('closing'); $('#cele').classList.add('on');
 
   // play the song from the start; the overlay closes when it ends
-  celeAudio.currentTime = 0;
+  try { celeAudio.currentTime = 0; } catch(e){}   // some iPhones throw if the song isn't loaded yet
+  celeAudio.muted = false; celeAudio.volume = 1;
+  clearTimeout(celeTimer);
+  $('.cele-note').textContent = '🎵 Now playing';
   celeAudio.play().catch(() => {
-    // if audio can't play (e.g. file missing), still show it for the clip length
+    // the phone blocked the sound: ask for a tap, and still close after the song's length
+    $('.cele-note').textContent = '🔇 Tap anywhere to play the song';
     celeTimer = setTimeout(closeCelebrate, 23500);
   });
   startConfetti(look.color);
 }
 celeAudio.addEventListener('ended', closeCelebrate);       // song finished -> close
 $('#celeX').onclick = closeCelebrate;                       // or close early with ×
+// tap the celebration screen to (re)start the song if the phone blocked it
+$('#cele').addEventListener('click', e => {
+  if (e.target.closest('#celeX') || !celeAudio.paused) return;
+  clearTimeout(celeTimer);
+  celeAudio.play().then(() => { $('.cele-note').textContent = '🎵 Now playing'; }).catch(() => {});
+});
 
 function closeCelebrate(){
   if (!$('#cele').classList.contains('on')) return;
