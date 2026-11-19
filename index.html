@@ -265,6 +265,50 @@
   .pick small{display:block;font-size:11px;opacity:.75;font-weight:600;letter-spacing:.4px;margin-bottom:2px}
   .score .wp{font-size:12px;line-height:1.3;text-align:center}
 
+  /* ===== Podium is tappable ===== */
+  .pod[data-id]{cursor:pointer;transition:transform .15s}
+  .pod[data-id]:active{transform:scale(.95)}
+  .pod-hint{text-align:center;font-size:12px;color:var(--muted);font-weight:600;margin:-4px 0 14px}
+
+  /* ===== Celebration overlay ===== */
+  .cele{position:absolute;inset:0;z-index:70;display:none;align-items:center;justify-content:center;overflow:hidden;
+    --medal:#FFD54A;   /* gold by default; changed for 2nd/3rd in JS */
+    background:radial-gradient(circle at 50% 42%,#1d55d8 0%,var(--blue) 38%,#00113d 100%)}
+  .cele.on{display:flex;animation:celeIn .35s ease}
+  .cele.closing{animation:celeOut .5s ease forwards}
+  @keyframes celeIn{from{opacity:0}}
+  @keyframes celeOut{to{opacity:0;transform:scale(1.06)}}
+  /* rotating spotlight rays behind the player */
+  .rays{position:absolute;width:220%;aspect-ratio:1;left:-60%;top:50%;margin-top:-110%;
+    background:repeating-conic-gradient(from 0deg,rgba(255,242,0,.13) 0deg 9deg,transparent 9deg 18deg);
+    -webkit-mask:radial-gradient(circle,#000 0%,transparent 60%);mask:radial-gradient(circle,#000 0%,transparent 60%);
+    animation:spin 24s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+  .cele-card{position:relative;z-index:3;text-align:center;color:#fff;padding:0 24px}
+  .cele-medal{font-size:64px;animation:medalDrop .8s cubic-bezier(.2,1.6,.4,1) both}
+  @keyframes medalDrop{from{transform:translateY(-180px) rotate(-200deg);opacity:0}}
+  .cele-avatar{width:132px;height:132px;border-radius:50%;margin:6px auto 0;display:grid;place-items:center;
+    font-size:46px;font-weight:800;color:#fff;border:6px solid var(--medal);
+    animation:pop2 .7s .2s cubic-bezier(.2,1.5,.4,1) both, glow 1.6s 1s ease-in-out infinite}
+  .cele-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+  @keyframes pop2{from{transform:scale(0)}}
+  @keyframes glow{0%,100%{box-shadow:0 0 0 0 var(--medal),0 0 40px 4px var(--medal)}50%{box-shadow:0 0 0 14px transparent,0 0 70px 14px var(--medal)}}
+  .cele-place{display:inline-block;margin-top:20px;background:var(--medal);color:#00113d;font-weight:800;font-size:13px;
+    letter-spacing:2px;padding:6px 16px;border-radius:999px;animation:rise .6s .55s both}
+  .cele-name{font-family:'Roboto Slab',serif;font-weight:900;font-size:40px;line-height:1.1;margin-top:12px;
+    text-shadow:0 4px 24px rgba(0,0,0,.35);overflow-wrap:anywhere;animation:rise .6s .7s both}
+  .cele-stats{display:flex;justify-content:center;gap:10px;margin-top:22px}
+  .cele-stats div{background:rgba(255,255,255,.12);border-radius:16px;padding:10px 16px;min-width:78px;animation:rise .5s both}
+  .cele-stats div:nth-child(1){animation-delay:.9s}.cele-stats div:nth-child(2){animation-delay:1s}.cele-stats div:nth-child(3){animation-delay:1.1s}
+  .cele-stats b{display:block;font-size:24px;font-weight:800;color:var(--yellow)}
+  .cele-stats small{font-size:11px;opacity:.75;font-weight:600}
+  @keyframes rise{from{opacity:0;transform:translateY(24px)}}
+  .cele-x{position:absolute;top:max(56px, calc(env(safe-area-inset-top) + 12px));right:18px;z-index:4;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;font-size:22px;font-weight:700}
+  .cele-bar{position:absolute;left:24px;right:24px;bottom:calc(env(safe-area-inset-bottom) + 32px);height:5px;border-radius:9px;background:rgba(255,255,255,.18);z-index:4;overflow:hidden}
+  .cele-bar i{display:block;height:100%;width:0;background:var(--medal);border-radius:9px}
+  .cele-note{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 46px);left:0;right:0;text-align:center;color:#fff;opacity:.6;font-size:12px;font-weight:600;z-index:4}
+
   /* ===== Toast ===== */
   .toast{position:absolute;left:50%;bottom:100px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:11px 16px;border-radius:14px;font-size:13px;font-weight:600;opacity:0;transition:.25s;z-index:60;white-space:nowrap;pointer-events:none}
   .toast.on{opacity:1;transform:translateX(-50%)}
@@ -302,6 +346,15 @@
     .half .faces{margin-bottom:4px}
     .half .faces .avatar{width:42px;height:42px;border-radius:13px;font-size:15px}
     .half .minus{top:auto;bottom:12px;transform:none}     /* minus button in the corner so it doesn't cover the score */
+    /* celebration screen sideways: shrink it so it fits the short height */
+    .cele-medal{font-size:36px}
+    .cele-avatar{width:84px;height:84px;font-size:30px;border-width:4px}
+    .cele-place{margin-top:10px}
+    .cele-name{font-size:26px;margin-top:6px}
+    .cele-stats{margin-top:10px}
+    .cele-stats div{padding:6px 12px}
+    .cele-x{top:10px}
+    .cele-note{display:none}
   }
 </style>
 </head>
@@ -493,6 +546,22 @@
     <div id="loserPic"></div>
     <div class="msg" id="loserMsg"></div>
     <div class="tap">TAP TO CLOSE</div>
+  </div>
+
+  <!-- Celebration overlay (tap a podium player) -->
+  <div class="cele" id="cele">
+    <div class="rays"></div>
+    <canvas id="confetti"></canvas>
+    <button class="cele-x" id="celeX" aria-label="Close">×</button>
+    <div class="cele-card">
+      <div class="cele-medal" id="celeMedal">🥇</div>
+      <div class="cele-avatar" id="celeAvatar"></div>
+      <div class="cele-place" id="celePlace">CHAMPION</div>
+      <div class="cele-name" id="celeName"></div>
+      <div class="cele-stats" id="celeStats"></div>
+    </div>
+    <div class="cele-note">🎵 Now playing</div>
+    <div class="cele-bar"><i id="celeProg"></i></div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -925,9 +994,10 @@ function renderBoard(){
     const order = [top[1], top[0], top[2]];       // 2nd, 1st, 3rd
     const medal = ['🥈','🥇','🥉'];
     $('#podium').innerHTML = `<div class="podium">${order.map((p,i)=> p ? `
-      <div class="pod ${i===1?'first':''}"><div class="medal">${medal[i]}</div>
+      <div class="pod ${i===1?'first':''}" data-id="${p.id}" data-place="${[2,1,3][i]}"><div class="medal">${medal[i]}</div>
         ${avatar(p.name)}
-        <div class="n">${esc(p.name)}</div><div class="w">${p.w} wins</div></div>` : '<div></div>').join('')}</div>`;
+        <div class="n">${esc(p.name)}</div><div class="w">${p.w} wins</div></div>` : '<div></div>').join('')}</div>
+      <div class="pod-hint">Tap a top player to celebrate 🎉</div>`;
   } else $('#podium').innerHTML = `<div class="empty" style="padding-top:6px"><div class="big">🏆</div>Finish a match to see the rankings.</div>`;
 
   $('#lb').innerHTML = ranked.length ? ranked.map((p,i)=>{ const d=p.pf-p.pa; return `
@@ -946,6 +1016,101 @@ $('#resetBtn').onclick = () => confirmSheet('Reset all stats?', 'Wins, losses, r
   S.players.forEach(p=>Object.assign(p,{w:0,l:0,pf:0,pa:0,gp:0,streak:0})); S.history=[]; S.matches=[]; S.bench=[]; S.round=0;
   render(); toast('Stats reset');
 });
+
+/* ================= CELEBRATION ================= */
+// One audio player for the whole app. It must be started from a tap (iPhone rule).
+const AUDIO_SRC = 'audio/celebration.mp3';
+const celeAudio = new Audio();
+celeAudio.preload = 'auto';
+celeAudio.src = AUDIO_SRC;
+// Load the song as a blob so it also plays offline on iPhone
+// (Safari can't stream audio straight from the service worker cache).
+if (!AUDIO_SRC.startsWith('data:')) {
+  fetch(AUDIO_SRC).then(r => r.blob()).then(b => { celeAudio.src = URL.createObjectURL(b); }).catch(()=>{});
+}
+
+const PLACES = {   // look of each podium place
+  1: {label:'CHAMPION',  medal:'🥇', color:'#FFD54A'},
+  2: {label:'2ND PLACE', medal:'🥈', color:'#D7DEE8'},
+  3: {label:'3RD PLACE', medal:'🥉', color:'#E09A5B'}
+};
+let celeRAF = null, celeTimer = null, confetti = [];
+
+function celebrate(id, place){
+  const p = S.players.find(x => x.id === id); if (!p) return;
+  const look = PLACES[place], diff = p.pf - p.pa;
+  // fill in the player's details
+  $('#cele').style.setProperty('--medal', look.color);
+  $('#celeMedal').textContent = look.medal;
+  $('#celePlace').textContent = look.label;
+  $('#celeName').textContent = p.name;
+  const photo = photoOf(p.name);                            // photo from the PHOTOS list, if any
+  $('#celeAvatar').innerHTML = photo ? `<img src="${photo}" alt="">` : initials(p.name);
+  $('#celeAvatar').style.background = photo ? '#ddd' : colorOf(p.name);
+  $('#celeStats').innerHTML = `<div><b>${p.w}</b><small>Wins</small></div>
+    <div><b>${p.gp}</b><small>Games</small></div>
+    <div><b>${diff>0?'+':''}${diff}</b><small>Points +/−</small></div>`;
+  // restart the CSS entrance animations each time
+  const card = $('.cele-card'); card.replaceWith(card.cloneNode(true));
+  $('#cele').classList.remove('closing'); $('#cele').classList.add('on');
+
+  // play the song from the start; the overlay closes when it ends
+  celeAudio.currentTime = 0;
+  celeAudio.play().catch(() => {
+    // if audio can't play (e.g. file missing), still show it for the clip length
+    celeTimer = setTimeout(closeCelebrate, 23500);
+  });
+  startConfetti(look.color);
+}
+celeAudio.addEventListener('ended', closeCelebrate);       // song finished -> close
+$('#celeX').onclick = closeCelebrate;                       // or close early with ×
+
+function closeCelebrate(){
+  if (!$('#cele').classList.contains('on')) return;
+  celeAudio.pause(); clearTimeout(celeTimer);
+  $('#cele').classList.add('closing');                      // fade out
+  setTimeout(() => { $('#cele').classList.remove('on','closing'); cancelAnimationFrame(celeRAF); }, 500);
+}
+
+// Tapping 1st, 2nd or 3rd on the podium starts the celebration
+$('#podium').onclick = e => {
+  const pod = e.target.closest('.pod[data-id]');
+  if (pod) celebrate(pod.dataset.id, +pod.dataset.place);
+};
+
+// ----- confetti drawn on a canvas -----
+function startConfetti(medalColor){
+  const cv = $('#confetti'), ctx = cv.getContext('2d');
+  const W = cv.width = cv.offsetWidth * devicePixelRatio, H = cv.height = cv.offsetHeight * devicePixelRatio;
+  const cols = ['#FFF200', '#0B6B2E', '#FFFFFF', medalColor, '#5B8CFF'];
+  const make = (burst) => ({
+    x: burst ? W/2 : Math.random()*W,                       // burst from the middle, rain from the top
+    y: burst ? H*0.42 : -20,
+    vx: burst ? (Math.random()-.5)*18*devicePixelRatio : (Math.random()-.5)*2,
+    vy: burst ? (Math.random()*-16-4)*devicePixelRatio : Math.random()*2+2,
+    s: (Math.random()*6+5)*devicePixelRatio, r: Math.random()*6, vr: (Math.random()-.5)*.3,
+    c: cols[Math.floor(Math.random()*cols.length)], round: Math.random()<.3
+  });
+  confetti = Array.from({length:160}, () => make(true));     // big opening burst
+  const progress = $('#celeProg');
+  cancelAnimationFrame(celeRAF);
+  (function frame(){
+    ctx.clearRect(0,0,W,H);
+    if (confetti.length < 140) confetti.push(make(false), make(false));   // keep it raining
+    confetti.forEach(c => {
+      c.vy += .25*devicePixelRatio*.6; c.vx *= .99;           // gravity + air drag
+      c.x += c.vx; c.y += c.vy; c.r += c.vr;
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.r); ctx.fillStyle = c.c;
+      if (c.round){ ctx.beginPath(); ctx.arc(0,0,c.s/2.4,0,7); ctx.fill(); }
+      else ctx.fillRect(-c.s/2, -c.s/4, c.s, c.s/2);
+      ctx.restore();
+    });
+    confetti = confetti.filter(c => c.y < H + 30);           // drop pieces that fell off screen
+    // progress bar follows the song
+    if (celeAudio.duration) progress.style.width = (celeAudio.currentTime / celeAudio.duration * 100) + '%';
+    celeRAF = requestAnimationFrame(frame);
+  })();
+}
 
 /* ================= RENDER ALL ================= */
 function render(){
