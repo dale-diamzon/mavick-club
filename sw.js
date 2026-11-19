@@ -4,7 +4,7 @@
 
 // Change this name (v2, v3...) every time you update the app,
 // so phones throw away the old copy and download the new one.
-const CACHE = 'mavick-club-v14';
+const CACHE = 'mavick-club-v15';
 
 // Every file the app needs to run offline
 const FILES = [
