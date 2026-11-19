@@ -1018,17 +1018,57 @@ $('#resetBtn').onclick = () => confirmSheet('Reset all stats?', 'Wins, losses, r
 });
 
 /* ================= CELEBRATION ================= */
-// One audio player for the whole app. It must be started from a tap (iPhone rule).
+// The song is played with Web Audio: the WHOLE file is loaded into memory first,
+// then played. (iPhones get stuck "loading" a normal <audio> file that comes
+// from the offline cache, so we don't use <audio> here.)
 const AUDIO_SRC = 'audio/celebration.mp3';
-const celeAudio = new Audio();
 // iPhone (iOS 17+): treat this as media playback so it still plays when the silent switch is on
 try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
-celeAudio.preload = 'auto';
-celeAudio.src = AUDIO_SRC;
-// Load the song as a blob so it also plays offline on iPhone
-// (Safari can't stream audio straight from the service worker cache).
-if (!AUDIO_SRC.startsWith('data:')) {
-  fetch(AUDIO_SRC).then(r => r.blob()).then(b => { celeAudio.src = URL.createObjectURL(b); }).catch(()=>{});
+
+let actx = null;          // the audio engine (created on the first tap — iPhone rule)
+let songBuf = null;       // the decoded song, kept after the first load
+let songNode = null;      // the song currently playing
+let songStart = 0;        // when it started (in audio-engine time), for the progress bar
+// Start downloading the song's bytes right away so it's ready when someone taps
+let songBytes = fetch(AUDIO_SRC).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
+songBytes.catch(() => {});
+
+// Turn the downloaded bytes into playable sound (only done once)
+function getSong(){
+  if (songBuf) return Promise.resolve(songBuf);
+  return songBytes
+    .catch(() => songBytes = fetch(AUDIO_SRC).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }))  // retry once
+    .then(bytes => new Promise((ok, fail) => actx.decodeAudioData(bytes.slice(0), ok, fail)))   // old-Safari style callbacks
+    .then(buf => songBuf = buf);
+}
+
+// Stop the song without triggering "song ended -> close"
+function stopSong(){
+  if (songNode){ songNode.onended = null; try { songNode.stop(); } catch(e){} songNode = null; }
+}
+
+// MUST be called directly from a tap
+function playSong(){
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  actx.resume();                                             // wake the audio engine inside the tap
+  // play a tiny silent sound now: this "unlocks" sound on iPhone for this tap
+  const s = actx.createBufferSource(); s.buffer = actx.createBuffer(1, 1, 22050); s.connect(actx.destination); s.start(0);
+  stopSong(); clearTimeout(celeTimer);
+  $('.cele-note').textContent = '⏳ Loading song…';
+  getSong().then(buf => {
+    if (!$('#cele').classList.contains('on')) return;        // closed while it was loading
+    songNode = actx.createBufferSource();
+    songNode.buffer = buf;
+    songNode.connect(actx.destination);
+    songNode.onended = closeCelebrate;                       // song finished -> close
+    songStart = actx.currentTime;
+    songNode.start(0);
+    $('.cele-note').textContent = '🎵 Now playing';
+  }).catch(() => {
+    // file missing / can't play: still show the celebration for the clip length
+    $('.cele-note').textContent = '🔇 Song couldn\'t load';
+    celeTimer = setTimeout(closeCelebrate, 23500);
+  });
 }
 
 const PLACES = {   // look of each podium place
@@ -1057,29 +1097,19 @@ function celebrate(id, place){
   $('#cele').classList.remove('closing'); $('#cele').classList.add('on');
 
   // play the song from the start; the overlay closes when it ends
-  try { celeAudio.currentTime = 0; } catch(e){}   // some iPhones throw if the song isn't loaded yet
-  celeAudio.muted = false; celeAudio.volume = 1;
-  clearTimeout(celeTimer);
-  $('.cele-note').textContent = '🎵 Now playing';
-  celeAudio.play().catch(() => {
-    // the phone blocked the sound: ask for a tap, and still close after the song's length
-    $('.cele-note').textContent = '🔇 Tap anywhere to play the song';
-    celeTimer = setTimeout(closeCelebrate, 23500);
-  });
+  playSong();
   startConfetti(look.color);
 }
-celeAudio.addEventListener('ended', closeCelebrate);       // song finished -> close
-$('#celeX').onclick = closeCelebrate;                       // or close early with ×
-// tap the celebration screen to (re)start the song if the phone blocked it
+$('#celeX').onclick = closeCelebrate;                       // close early with ×
+// if the song didn't start, tapping the celebration screen tries again
 $('#cele').addEventListener('click', e => {
-  if (e.target.closest('#celeX') || !celeAudio.paused) return;
-  clearTimeout(celeTimer);
-  celeAudio.play().then(() => { $('.cele-note').textContent = '🎵 Now playing'; }).catch(() => {});
+  if (e.target.closest('#celeX') || songNode) return;
+  playSong();
 });
 
 function closeCelebrate(){
   if (!$('#cele').classList.contains('on')) return;
-  celeAudio.pause(); clearTimeout(celeTimer);
+  stopSong(); clearTimeout(celeTimer);
   $('#cele').classList.add('closing');                      // fade out
   setTimeout(() => { $('#cele').classList.remove('on','closing'); cancelAnimationFrame(celeRAF); }, 500);
 }
@@ -1119,7 +1149,7 @@ function startConfetti(medalColor){
     });
     confetti = confetti.filter(c => c.y < H + 30);           // drop pieces that fell off screen
     // progress bar follows the song
-    if (celeAudio.duration) progress.style.width = (celeAudio.currentTime / celeAudio.duration * 100) + '%';
+    progress.style.width = songNode ? Math.min(100, (actx.currentTime - songStart) / songBuf.duration * 100) + '%' : '0%';
     celeRAF = requestAnimationFrame(frame);
   })();
 }
