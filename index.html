@@ -1021,7 +1021,10 @@ $('#resetBtn').onclick = () => confirmSheet('Reset all stats?', 'Wins, losses, r
 // The song is played with Web Audio: the WHOLE file is loaded into memory first,
 // then played. (iPhones get stuck "loading" a normal <audio> file that comes
 // from the offline cache, so we don't use <audio> here.)
-const AUDIO_SRC = 'audio/celebration.mp3';
+// Where the song can be. GitHub's uploader sometimes drops the folder and puts the
+// file at the top level, so we look in BOTH places (first one that works wins).
+const AUDIO_PATHS = ['audio/celebration.mp3', 'celebration.mp3'];
+let songError = '';       // why loading failed, shown on screen to help fix it
 // iPhone (iOS 17+): treat this as media playback so it still plays when the silent switch is on
 try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
 
@@ -1029,16 +1032,26 @@ let actx = null;          // the audio engine (created on the first tap — iPho
 let songBuf = null;       // the decoded song, kept after the first load
 let songNode = null;      // the song currently playing
 let songStart = 0;        // when it started (in audio-engine time), for the progress bar
-// Start downloading the song's bytes right away so it's ready when someone taps
-let songBytes = fetch(AUDIO_SRC).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
+// Download the song's bytes: try each path in order until one is found
+function loadBytes(){
+  return AUDIO_PATHS.reduce((chain, path) => chain.catch(() =>
+    fetch(path).then(r => {
+      if (!r.ok) throw new Error('not found');               // e.g. 404: try the next path
+      return r.arrayBuffer();
+    })), Promise.reject())
+  .catch(e => { songError = 'file not found'; throw e; });
+}
+// Start downloading right away so it's ready when someone taps
+let songBytes = loadBytes();
 songBytes.catch(() => {});
 
 // Turn the downloaded bytes into playable sound (only done once)
 function getSong(){
   if (songBuf) return Promise.resolve(songBuf);
   return songBytes
-    .catch(() => songBytes = fetch(AUDIO_SRC).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }))  // retry once
-    .then(bytes => new Promise((ok, fail) => actx.decodeAudioData(bytes.slice(0), ok, fail)))   // old-Safari style callbacks
+    .catch(() => songBytes = loadBytes())                     // retry once (maybe it was offline)
+    .then(bytes => new Promise((ok, fail) => actx.decodeAudioData(bytes.slice(0), ok,
+      () => { songError = "file can't be played"; fail(new Error('decode')); })))   // old-Safari style callbacks
     .then(buf => songBuf = buf);
 }
 
@@ -1066,7 +1079,7 @@ function playSong(){
     $('.cele-note').textContent = '🎵 Now playing';
   }).catch(() => {
     // file missing / can't play: still show the celebration for the clip length
-    $('.cele-note').textContent = '🔇 Song couldn\'t load';
+    $('.cele-note').textContent = `🔇 Song couldn't load (${songError || 'unknown error'})`;
     celeTimer = setTimeout(closeCelebrate, 23500);
   });
 }

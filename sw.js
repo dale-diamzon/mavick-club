@@ -4,7 +4,7 @@
 
 // Change this name (v2, v3...) every time you update the app,
 // so phones throw away the old copy and download the new one.
-const CACHE = 'mavick-club-v13';
+const CACHE = 'mavick-club-v14';
 
 // Every file the app needs to run offline
 const FILES = [
@@ -33,7 +33,8 @@ const FILES = [
   './fonts/slab-800.woff2',
   './fonts/slab-900.woff2',
   // celebration song for the podium
-  './audio/celebration.mp3'
+  './audio/celebration.mp3',
+  './celebration.mp3'          // backup spot, in case it was uploaded without the folder
 ];
 
 // 1) INSTALL: the first time someone opens the link, download all files into the cache
